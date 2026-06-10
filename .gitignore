@@ -1,0 +1,41 @@
+# Secrets and local environment
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+ros2_ws/src/robot_assistant/robot_assistant/26.1.2
+
+# Local generated data
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# Keep generated recordings, command bridge files, telemetry logs, and DB backups local.
+*.wav
+*.mp3
+*.jsonl
+webots_command.json
+mongo_backups/
+
+# Webots / editor generated files
+*.wbproj
+*.wbt~
+*.bak
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store

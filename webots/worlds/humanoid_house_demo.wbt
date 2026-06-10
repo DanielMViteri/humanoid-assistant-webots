@@ -1,0 +1,376 @@
+#VRML_SIM R2025a utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2025a/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+
+WorldInfo {
+  info [
+    "Sprint 3 single humanoid assistant demo world."
+    "The robot runs humanoid_sensor_controller and exports Webots sensor events."
+  ]
+  title "Humanoid House Demo"
+}
+Viewpoint {
+  orientation 0.2498285202432572 -0.10731288227889814 -0.9623251299691076 3.532752500735013
+  position 2.94247527127993 -1.9426161727895277 1.7326579945356597
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+DEF HOUSE_FLOOR Solid {
+  translation 0 0 -0.01
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.74 0.76 0.72
+        roughness 0.8
+      }
+      geometry Box {
+        size 5 5 0.02
+      }
+    }
+  ]
+  boundingObject Box {
+    size 5 5 0.02
+  }
+  name "house_floor"
+}
+DEF LIVING_ROOM_ZONE Solid {
+  translation -1.25 0 0.005
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.65 0.78 0.95
+        transparency 0.35
+      }
+      geometry Box {
+        size 2.5 5 0.01
+      }
+    }
+  ]
+  name "living_room_zone"
+}
+DEF KITCHEN_ZONE Solid {
+  translation 1.25 -1.25 0.008
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.76 0.92 0.72
+        transparency 0.35
+      }
+      geometry Box {
+        size 2.5 2.5 0.01
+      }
+    }
+  ]
+  name "kitchen_zone"
+}
+DEF BEDROOM_ZONE Solid {
+  translation 1.25 1.25 0.008
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.96 0.82 0.62
+        transparency 0.35
+      }
+      geometry Box {
+        size 2.5 2.5 0.01
+      }
+    }
+  ]
+  name "bedroom_zone"
+}
+DEF BACK_WALL Solid {
+  translation 0 2.5 0.5
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.86 0.86 0.84
+      }
+      geometry Box {
+        size 5 0.08 1
+      }
+    }
+  ]
+  boundingObject Box {
+    size 5 0.08 1
+  }
+  name "back_wall"
+}
+DEF FRONT_WALL Solid {
+  translation 0 -2.5 0.5
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.86 0.86 0.84
+      }
+      geometry Box {
+        size 5 0.08 1
+      }
+    }
+  ]
+  boundingObject Box {
+    size 5 0.08 1
+  }
+  name "front_wall"
+}
+DEF LEFT_WALL Solid {
+  translation -2.5 0 0.5
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.86 0.86 0.84
+      }
+      geometry Box {
+        size 0.08 5 1
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.08 5 1
+  }
+  name "left_wall"
+}
+DEF RIGHT_WALL Solid {
+  translation 2.5 0 0.5
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.86 0.86 0.84
+      }
+      geometry Box {
+        size 0.08 5 1
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.08 5 1
+  }
+  name "right_wall"
+}
+DEF ROOM_DIVIDER_VERTICAL Solid {
+  translation 0 1.25 0.35
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.78 0.78 0.76
+      }
+      geometry Box {
+        size 0.06 2.5 0.7
+      }
+    }
+  ]
+  boundingObject Box {
+    size 0.06 2.5 0.7
+  }
+  name "room_divider_vertical"
+}
+DEF ROOM_DIVIDER_HORIZONTAL Solid {
+  translation 1.25 0 0.35
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.78 0.78 0.76
+      }
+      geometry Box {
+        size 2.5 0.06 0.7
+      }
+    }
+  ]
+  boundingObject Box {
+    size 2.5 0.06 0.7
+  }
+  name "room_divider_horizontal"
+}
+DEF TABLE Solid {
+  translation 1.15 -1.25 0.22
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.55 0.35 0.18
+      }
+      geometry Box {
+        size 0.75 0.55 0.08
+      }
+    }
+  ]
+  name "table"
+  boundingObject Box {
+    size 0.75 0.55 0.08
+  }
+  recognitionColors [
+    0.55 0.35 0.18
+  ]
+}
+DEF MEDICINE_BOX Solid {
+  translation 1.15 -1.25 0.33
+  children [
+    Shape {
+      appearance PBRAppearance {
+      }
+      geometry Box {
+        size 0.22 0.14 0.12
+      }
+    }
+    Pose {
+      translation 0 0 0.065
+      children [
+        Shape {
+          appearance PBRAppearance {
+            baseColor 1 0.1 0.1
+          }
+          geometry Box {
+            size 0.14 0.025 0.01
+          }
+        }
+        Shape {
+          appearance PBRAppearance {
+            baseColor 1 0.1 0.1
+          }
+          geometry Box {
+            size 0.025 0.1 0.01
+          }
+        }
+      ]
+    }
+  ]
+  name "medicine_box"
+  model "medicine_box"
+  boundingObject Box {
+    size 0.22 0.14 0.12
+  }
+  recognitionColors [
+    1 1 1
+  ]
+}
+DEF CHAIR Solid {
+  translation -1.55 0.95 0.2
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.25 0.28 0.32
+      }
+      geometry Box {
+        size 0.45 0.45 0.12
+      }
+    }
+    Pose {
+      translation 0 0.18 0.3
+      children [
+        Shape {
+          appearance PBRAppearance {
+            baseColor 0.25 0.28 0.32
+          }
+          geometry Box {
+            size 0.45 0.08 0.5
+          }
+        }
+      ]
+    }
+  ]
+  name "chair"
+  boundingObject Box {
+    size 0.45 0.45 0.12
+  }
+  recognitionColors [
+    0.25 0.28 0.32
+  ]
+}
+DEF CANE Solid {
+  translation -1.25 1.25 0.42
+  rotation 1 0 0 0.25
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.08 0.05 0.03
+      }
+      geometry Cylinder {
+        height 0.8
+        radius 0.025
+      }
+    }
+    Pose {
+      translation 0 0 0.42
+      rotation 0 1 0 1.5708
+      children [
+        Shape {
+          appearance PBRAppearance {
+            baseColor 0.08 0.05 0.03
+          }
+          geometry Cylinder {
+            height 0.25
+            radius 0.022
+          }
+        }
+      ]
+    }
+  ]
+  name "cane"
+  model "cane"
+  boundingObject Cylinder {
+    height 0.8
+    radius 0.025
+  }
+  recognitionColors [
+    0.08 0.05 0.03
+  ]
+}
+DEF HUMANOID_ASSISTANT Robot {
+  translation -1.4 -0.7 0.2784304013882695
+  rotation -3.968974514088871e-17 7.055825990141593e-19 -1 0.45000000000000023
+  children [
+    Shape {
+      appearance PBRAppearance {
+        baseColor 0.2 0.44 0.86
+      }
+      geometry Box {
+        size 0.32 0.22 0.56
+      }
+    }
+    Pose {
+      translation 0 0 0.42
+      children [
+        Shape {
+          appearance PBRAppearance {
+            baseColor 0.86 0.86 0.82
+          }
+          geometry Sphere {
+            radius 0.16
+          }
+        }
+      ]
+    }
+    Camera {
+      translation 0 -0.16 0.52
+      rotation 1 0 0 1.5708
+      fieldOfView 1.9
+      width 800
+      height 450
+      recognition Recognition {
+        maxRange 8
+        maxObjects 10
+      }
+    }
+    GPS {
+    }
+    Compass {
+    }
+    DistanceSensor {
+      translation 0 -0.14 0.24
+      rotation 1 0 0 1.5708
+      name "front_sensor"
+      lookupTable [
+        0 1024 0
+        3 0 0
+      ]
+      type "sonar"
+    }
+  ]
+  name "H1 humanoid assistant"
+  boundingObject Box {
+    size 0.32 0.22 0.56
+  }
+  controller "humanoid_sensor_controller"
+  supervisor TRUE
+}
