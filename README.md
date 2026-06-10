@@ -39,7 +39,7 @@ Build a small but working robot-assistant system where core abilities communicat
 
 ## Sprint 2 MongoDB Event Pipeline
 
-Daniel's Sprint 2 deliverable is the feature-event data foundation:
+Daniel's (me) Sprint 2 deliverable is the feature-event data foundation:
 
 ```text
 scripted humanoid feature events -> MongoDB Atlas -> Leona's dashboard data source
