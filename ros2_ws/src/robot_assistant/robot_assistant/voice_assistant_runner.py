@@ -53,14 +53,32 @@ def record_wav(
         print(f"Recording starts in {remaining}...")
         time.sleep(1)
 
-    recording = sd.rec(
-        int(duration_seconds * sample_rate),
-        samplerate=sample_rate,
-        channels=1,
-        dtype="float32",
-        device=device,
-    )
+    requested_channels = 1
+    try:
+        recording = sd.rec(
+            int(duration_seconds * sample_rate),
+            samplerate=sample_rate,
+            channels=requested_channels,
+            dtype="float32",
+            device=device,
+        )
+    except Exception as exc:
+        if "Invalid number of channels" not in str(exc):
+            raise
+        device_info = sd.query_devices(device, "input") if device is not None else sd.query_devices(kind="input")
+        fallback_channels = max(1, int(device_info.get("max_input_channels", requested_channels)))
+        print(f"Mono recording was rejected by this device; retrying with {fallback_channels} input channel(s).")
+        recording = sd.rec(
+            int(duration_seconds * sample_rate),
+            samplerate=sample_rate,
+            channels=fallback_channels,
+            dtype="float32",
+            device=device,
+        )
     sd.wait()
+
+    if recording.ndim == 2 and recording.shape[1] > 1:
+        recording = recording.mean(axis=1, keepdims=True)
 
     clipped = np.clip(recording, -1.0, 1.0)
     rms_level = float(np.sqrt(np.mean(np.square(clipped))))

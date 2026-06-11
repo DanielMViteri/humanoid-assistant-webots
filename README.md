@@ -23,6 +23,10 @@ swarmsense/
   notebooks/            Optional analysis notebooks
 ```
 
+## Saturday Demo
+
+Use [docs/demo/saturday_demo_runbook.md](docs/demo/saturday_demo_runbook.md) for the current demo script, setup checklist, expected Webots behavior, MongoDB verification steps, and fallback plan.
+
 ## Initial Setup
 
 ```bat

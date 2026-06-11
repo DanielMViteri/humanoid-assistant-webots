@@ -36,7 +36,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
-CONTROLLER_VERSION = "2026-06-08-step-navigation-v3"
+CONTROLLER_VERSION = "2026-06-10-retrieval-handoff-v1"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
 SEARCH_ROTATION_STEP = 0.18
@@ -190,6 +190,35 @@ def get_node_position(robot: Supervisor, def_name: str | None) -> list[float] | 
     if translation_field is None:
         return None
     return list(translation_field.getSFVec3f())
+
+
+def move_target_to_handoff(robot: Supervisor, target_object: str | None, robot_position: list[float]) -> list[float] | None:
+    """Move a reached target into a visible handoff position beside the humanoid."""
+    def_name = def_name_for_target(target_object)
+    if def_name is None:
+        return None
+
+    node = robot.getFromDef(def_name)
+    if node is None:
+        return None
+
+    translation_field = node.getField("translation")
+    rotation_field = node.getField("rotation")
+    if translation_field is None:
+        return None
+
+    target_position = list(translation_field.getSFVec3f())
+    handoff_position = [
+        robot_position[0] - 0.12,
+        robot_position[1] + 0.08,
+        target_position[2],
+    ]
+    translation_field.setSFVec3f(handoff_position)
+
+    if rotation_field is not None and normalize_object_name(target_object or "") == "cane":
+        rotation_field.setSFRotation([1, 0, 0, 0.25])
+
+    return handoff_position
 
 
 def target_matches(detected_object: str, target_object: str | None) -> bool:
@@ -473,6 +502,7 @@ def main() -> None:
         target_distance = planar_distance(position, target_position) if target_position is not None else None
         navigation_goal_distance = planar_distance(position, navigation_goal) if navigation_goal is not None else None
         target_area_reached = target_distance is not None and target_distance <= TARGET_REACHED_DISTANCE_METERS
+        target_completion_reached = target_area_reached or (target_position is None and target_detection is not None)
         command_was_completed = active_command_id in completed_targets if active_command_id else False
         search_is_active = (
             active_command is not None
@@ -552,27 +582,30 @@ def main() -> None:
                 )
             )
 
-        if search_is_active and (target_detection is not None or target_area_reached):
+        if search_is_active and target_completion_reached:
             found_command_ids.add(active_command_id)
             found_object = target_detection["object"] if target_detection else normalize_object_name(target_object or "target_object")
+            handoff_position = move_target_to_handoff(robot, target_object, position) if target_area_reached else None
             completed_targets[active_command_id] = {
                 "object": found_object,
                 "distance_m": target_detection["distance_m"] if target_detection else target_distance,
+                "handoff_position": handoff_position,
             }
             events.append(
                 create_event(
                     "important_object_alert",
                     {
                         "object": found_object,
-                        "status": "retrieval_ready" if target_area_reached else "found",
+                        "status": "retrieved_for_handoff" if handoff_position else "found",
                         "severity": "info",
-                        "reason": f"Target object {found_object} reached by the humanoid retrieval task.",
+                        "reason": f"Target object {found_object} reached and moved into handoff position." if handoff_position else f"Target object {found_object} found by the humanoid retrieval task.",
                         "distance_m": target_detection["distance_m"] if target_detection else target_distance,
                         "relative_position": target_detection["relative_position"] if target_detection else None,
+                        "handoff_position": {"x": round(handoff_position[0], 3), "y": round(handoff_position[1], 3), "z": round(handoff_position[2], 3)} if handoff_position else None,
                         "room": room,
                         "active_command_id": active_command_id,
                         "active_intent": active_command.get("intent"),
-                        "retrieval_state": "ready_for_handoff",
+                        "retrieval_state": "handoff_ready" if handoff_position else "target_found",
                         "sensor": "webots_camera_recognition" if target_detection else "webots_supervisor_target_position",
                     },
                     timestamp,
