@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import Any
 
 from event_schema import collection_for_event, create_event, current_epoch_ms
-from elevenlabs_voice import elevenlabs_error_hint, open_audio_file, synthesize_speech
+from elevenlabs_voice import (
+    elevenlabs_error_hint,
+    open_audio_file,
+    repair_ssl_cert_environment,
+    synthesize_speech,
+)
 from mongo_client import MongoEventClient, PROJECT_ROOT, load_dotenv, mongo_error_hint
 from scenario_runner import SCENARIO_BUILDERS, write_jsonl
 
@@ -70,6 +75,7 @@ def classify_with_openai(user_text: str, model: str) -> dict[str, Any]:
     except ImportError as exc:
         raise RuntimeError("openai is not installed. Run: pip install -r requirements-openai.txt") from exc
 
+    repair_ssl_cert_environment()
     client = OpenAI()
     response = client.responses.create(
         model=model,

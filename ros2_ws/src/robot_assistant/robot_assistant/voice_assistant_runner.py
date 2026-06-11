@@ -116,6 +116,7 @@ def main() -> int:
     parser.add_argument("--list-devices", action="store_true", help="List microphone input devices and exit.")
     parser.add_argument("--device", type=int, help="Microphone device index from --list-devices.")
     parser.add_argument("--play-input", action="store_true", help="Open the recorded user WAV before transcription.")
+    parser.add_argument("--no-manual-fallback", action="store_true", help="Do not prompt for typed transcript if speech-to-text fails.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"OpenAI model. Default: {DEFAULT_MODEL}")
     parser.add_argument("--mock", action="store_true", help="Use local mock NLP classification after transcription.")
     parser.add_argument("--insert", action="store_true", help="Insert generated events into MongoDB Atlas.")
@@ -153,6 +154,7 @@ def main() -> int:
             print("Voice session ended.")
             return 0
 
+        audio_path = None
         try:
             print(f"Recording for {args.duration} seconds...")
             audio_path, levels = record_wav(args.duration, args.sample_rate, device=args.device)
@@ -168,7 +170,15 @@ def main() -> int:
             print("Voice input: FAILED")
             print(f"Reason: {exc.__class__.__name__}: {exc}")
             print(f"Hint: {elevenlabs_error_hint(exc)}")
-            continue
+            if audio_path is None or args.no_manual_fallback:
+                continue
+            transcript = input("Type the transcript to continue, or press Enter to retry: ").strip()
+            if not transcript:
+                continue
+            if transcript.lower() in {"exit", "quit"}:
+                print("Voice session ended.")
+                return 0
+            print("Continuing with typed transcript fallback.")
 
         print(f"Transcript: {transcript}")
         process_user_message(transcript, nlp_args, mongo=mongo)
