@@ -72,6 +72,13 @@ OBSTACLES = {
     "RIGHT_SOFA": 0.55,
     "GUEST_CHAIR": 0.30,
 }
+OBSTACLE_LABELS = {
+    "LIVING_ARMCHAIR": "chair",
+    "COFFEE_TABLE": "table",
+    "LEFT_SOFA": "left_sofa",
+    "RIGHT_SOFA": "right_sofa",
+    "GUEST_CHAIR": "guest_chair",
+}
 PRESENTATION_HOME = [-1.55, -3.0, NAVIGATION_HEIGHT]
 
 
@@ -299,6 +306,28 @@ def obstacle_clearance_for_point(robot: Supervisor, point: list[float], ignore_d
     return min(clearances)
 
 
+def nearest_obstacle_to_point(
+    robot: Supervisor,
+    point: list[float],
+    ignore_def: str | None = None,
+) -> tuple[str | None, list[float] | None, float | None]:
+    nearest_name: str | None = None
+    nearest_position: list[float] | None = None
+    nearest_clearance: float | None = None
+    for def_name, radius in OBSTACLES.items():
+        if ignore_def is not None and def_name == ignore_def:
+            continue
+        position = get_position(get_node(robot, def_name))
+        if position is None:
+            continue
+        clearance = planar_distance(point, position) - radius
+        if nearest_clearance is None or clearance < nearest_clearance:
+            nearest_name = def_name
+            nearest_position = position
+            nearest_clearance = clearance
+    return nearest_name, nearest_position, round(nearest_clearance, 3) if nearest_clearance is not None else None
+
+
 def approach_goal_for_target(
     robot: Supervisor,
     robot_position: list[float],
@@ -317,16 +346,7 @@ def approach_goal_for_target(
     if robot_to_target <= TARGET_REACHED_DISTANCE_METERS + 0.35:
         return direct_goal
 
-    nearest_obstacle_position: list[float] | None = None
-    nearest_obstacle_clearance: float | None = None
-    for def_name, radius in OBSTACLES.items():
-        obstacle_position = get_position(get_node(robot, def_name))
-        if obstacle_position is None:
-            continue
-        clearance = planar_distance(target_position, obstacle_position) - radius
-        if nearest_obstacle_clearance is None or clearance < nearest_obstacle_clearance:
-            nearest_obstacle_clearance = clearance
-            nearest_obstacle_position = obstacle_position
+    _, nearest_obstacle_position, nearest_obstacle_clearance = nearest_obstacle_to_point(robot, target_position)
 
     if nearest_obstacle_position is not None:
         away_dx = target_position[0] - nearest_obstacle_position[0]
@@ -588,6 +608,8 @@ def main() -> None:
     route_command_id: str | None = None
     last_seen_target_position: list[float] | None = None
     last_seen_target_time = -1.0
+    announced_target_visibility: set[str] = set()
+    announced_route_safety: set[str] = set()
     write_motion_state(
         {
             "timestamp": epoch_ms(),
@@ -929,6 +951,63 @@ def main() -> None:
                     timestamp,
                 )
             )
+
+        if (
+            navigation_is_active
+            and action == "search_object"
+            and target_detection is not None
+            and active_command_id is not None
+            and active_command_id not in announced_target_visibility
+        ):
+            announced_target_visibility.add(active_command_id)
+            normalized_target = normalize_object_name(target_object or "target_object")
+            events.append(
+                create_event(
+                    "important_object_alert",
+                    {
+                        "object": normalized_target,
+                        "status": "located",
+                        "severity": "info",
+                        "reason": f"Requested {normalized_target} detected in view. The NAO is moving into retrieval position.",
+                        "distance_m": target_detection["distance_m"],
+                        "relative_position": target_detection["relative_position"],
+                        "room": room,
+                        "active_command_id": active_command_id,
+                        "active_intent": active_command.get("intent"),
+                        "sensor": "webots_supervisor_visibility",
+                    },
+                    timestamp,
+                )
+            )
+
+        if (
+            navigation_is_active
+            and action == "search_object"
+            and normalize_object_name(target_object or "") == "cane"
+            and target_position is not None
+            and active_command_id is not None
+            and active_command_id not in announced_route_safety
+        ):
+            obstacle_name, _, obstacle_clearance = nearest_obstacle_to_point(robot, target_position)
+            if obstacle_name is not None and obstacle_clearance is not None and obstacle_clearance < 0.55:
+                announced_route_safety.add(active_command_id)
+                events.append(
+                    create_event(
+                        "safety_alert",
+                        {
+                            "severity": "warning",
+                            "reason": "Obstacle detected close to the requested cane. The NAO is using a safer approach path.",
+                            "obstacle_distance_m": max(0.0, obstacle_clearance),
+                            "obstacle_name": OBSTACLE_LABELS.get(obstacle_name, obstacle_name.lower()),
+                            "target_object": "cane",
+                            "active_command_id": active_command_id,
+                            "active_intent": active_command.get("intent"),
+                            "room": room,
+                            "sensor": "webots_supervisor_target_context",
+                        },
+                        timestamp,
+                    )
+                )
 
         if (
             navigation_is_active
