@@ -11,8 +11,8 @@ WorldInfo {
   title "Humanoid House Demo"
 }
 Viewpoint {
-  orientation 0.2498285202432572 -0.10731288227889814 -0.9623251299691076 3.532752500735013
-  position 2.94247527127993 -1.9426161727895277 1.7326579945356597
+  orientation 0.11712706173267519 -0.5286717259650969 -0.8407065228573853 5.290512349825342
+  position -2.809020679531976 -2.2954862063133255 2.2440266310892416
 }
 TexturedBackground {
 }
@@ -31,10 +31,10 @@ DEF HOUSE_FLOOR Solid {
       }
     }
   ]
+  name "house_floor"
   boundingObject Box {
     size 5 5 0.02
   }
-  name "house_floor"
 }
 DEF LIVING_ROOM_ZONE Solid {
   translation -1.25 0 0.005
@@ -93,10 +93,10 @@ DEF BACK_WALL Solid {
       }
     }
   ]
+  name "back_wall"
   boundingObject Box {
     size 5 0.08 1
   }
-  name "back_wall"
 }
 DEF FRONT_WALL Solid {
   translation 0 -2.5 0.5
@@ -110,10 +110,10 @@ DEF FRONT_WALL Solid {
       }
     }
   ]
+  name "front_wall"
   boundingObject Box {
     size 5 0.08 1
   }
-  name "front_wall"
 }
 DEF LEFT_WALL Solid {
   translation -2.5 0 0.5
@@ -127,10 +127,10 @@ DEF LEFT_WALL Solid {
       }
     }
   ]
+  name "left_wall"
   boundingObject Box {
     size 0.08 5 1
   }
-  name "left_wall"
 }
 DEF RIGHT_WALL Solid {
   translation 2.5 0 0.5
@@ -144,10 +144,10 @@ DEF RIGHT_WALL Solid {
       }
     }
   ]
+  name "right_wall"
   boundingObject Box {
     size 0.08 5 1
   }
-  name "right_wall"
 }
 DEF ROOM_DIVIDER_VERTICAL Solid {
   translation 0 1.25 0.35
@@ -161,10 +161,10 @@ DEF ROOM_DIVIDER_VERTICAL Solid {
       }
     }
   ]
+  name "room_divider_vertical"
   boundingObject Box {
     size 0.06 2.5 0.7
   }
-  name "room_divider_vertical"
 }
 DEF ROOM_DIVIDER_HORIZONTAL Solid {
   translation 1.25 0 0.35
@@ -178,10 +178,10 @@ DEF ROOM_DIVIDER_HORIZONTAL Solid {
       }
     }
   ]
+  name "room_divider_horizontal"
   boundingObject Box {
     size 2.5 0.06 0.7
   }
-  name "room_divider_horizontal"
 }
 DEF TABLE Solid {
   translation 1.15 -1.25 0.22
@@ -278,7 +278,7 @@ DEF CHAIR Solid {
   ]
 }
 DEF CANE Solid {
-  translation -1.25 1.25 0.42
+  translation -1.1714649736647904 0.8482744198609025 0.42
   rotation 1 0 0 0.25
   children [
     Shape {
@@ -317,8 +317,8 @@ DEF CANE Solid {
   ]
 }
 DEF HUMANOID_ASSISTANT Robot {
-  translation -1.4 -0.7 0.2784304013882695
-  rotation -3.968974514088871e-17 7.055825990141593e-19 -1 0.45000000000000023
+  translation -1.0514649736647903 0.7682744198609025 0.2784304013882695
+  rotation 0 0 1 -2.8245367382421716
   children [
     Shape {
       appearance PBRAppearance {

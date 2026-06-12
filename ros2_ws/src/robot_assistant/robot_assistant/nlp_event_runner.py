@@ -249,6 +249,11 @@ def command_for_decision(user_text: str, decision: dict[str, Any]) -> dict[str, 
             "target_object": None,
             "task_status": "wellbeing_support",
         },
+        "general_support": {
+            "action": "support_user",
+            "target_object": None,
+            "task_status": "general_support",
+        },
     }
     if intent not in actions:
         return None
