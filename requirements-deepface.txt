@@ -1,0 +1,5 @@
+# DeepFace currently depends on TensorFlow-compatible builds that are much more reliable
+# in Python 3.10, 3.11, or 3.12 than in Python 3.14.
+# `tf-keras` is needed by the current RetinaFace/DeepFace stack when TensorFlow 2.21 is installed.
+deepface>=0.0.95
+tf-keras>=2.21,<2.22

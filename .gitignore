@@ -3,6 +3,9 @@
 .env.*
 !.env.example
 .venv/
+.venv-deepface310/
+.venv-perception312/
+.venv-perception311/
 venv/
 env/
 

@@ -37,6 +37,44 @@ pip install -r requirements-openai.txt
 pip install -r requirements-voice.txt
 ```
 
+Perception note:
+- `YOLO`, `DeepFace`, and `ChromaDB` are now wired in as optional features.
+- `requirements-perception.txt` covers `YOLO`, `ChromaDB`, OpenCV, and Pillow for the dedicated perception environment.
+- `YOLO_CONFIG_DIR` can be pointed at `data/processed/ultralytics` to keep Ultralytics settings and cache inside the repo instead of AppData.
+- `DeepFace` may be easier to install from `requirements-deepface.txt` in a Python 3.11 or 3.12 environment than Python 3.14.
+- The core demo still works without the perception stack.
+
+### Rebuild Perception Environment
+
+When the main demo environment is on Python 3.14, rebuild the dedicated perception environment with Python 3.12:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\rebuild_perception_env.ps1
+```
+
+This creates:
+
+- `.venv-perception311`
+
+Activate it from CMD:
+
+```bat
+call tools\activate_perception_env.cmd
+```
+
+Or skip activation entirely and call the isolated interpreter directly:
+
+```bat
+.\.venv-perception311\Scripts\python.exe tools\perception_import_check.py
+```
+
+Smoke-test the rebuilt environment:
+
+```bat
+python tools\perception_import_check.py
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --mock --text "I feel sad today" --scene-image webots\worlds\.nao_house_demo.jpg --face-image webots\worlds\.nao_house_demo.jpg --use-memory --no-output
+```
+
 ## MVP Goal
 
 Build a small but working robot-assistant system where core abilities communicate as separate ROS2 Python nodes.
@@ -113,6 +151,30 @@ Run the assistant with ElevenLabs speech output:
 python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert --speak
 ```
 
+Run the assistant with ChromaDB memory enabled:
+
+```bat
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert --use-memory
+```
+
+Run the assistant with YOLO scene perception from an image:
+
+```bat
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "Can you help me find my cane?" --scene-image data\raw\webots_scene.png --insert
+```
+
+Run the assistant with DeepFace emotion analysis from a face image:
+
+```bat
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "I feel a bit sad today." --face-image data\raw\user_face.jpg --insert
+```
+
+Run the assistant with memory, YOLO, and DeepFace together:
+
+```bat
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "Can you help me find my cane?" --use-memory --scene-image data\raw\webots_scene.png --face-image data\raw\user_face.jpg --insert
+```
+
 Open the generated MP3 after each response:
 
 ```bat
@@ -129,6 +191,18 @@ Run push-to-talk voice input and send commands to Webots:
 
 ```bat
 python ros2_ws\src\robot_assistant\robot_assistant\voice_assistant_runner.py --insert --speak --play-audio --webots-command
+```
+
+Run the voice assistant with optional memory and perception context:
+
+```bat
+python ros2_ws\src\robot_assistant\robot_assistant\voice_assistant_runner.py --insert --speak --webots-command --use-memory --scene-image data\raw\webots_scene.png --face-image data\raw\user_face.jpg
+```
+
+Run the voice assistant with live webcam scene and face capture from the dedicated perception environment:
+
+```bat
+tools\run_voice_with_perception.cmd --device 2 --duration 7 --insert --speak --play-audio --webcam-scene --webcam-face
 ```
 
 Import Webots humanoid sensor events into MongoDB Atlas:
