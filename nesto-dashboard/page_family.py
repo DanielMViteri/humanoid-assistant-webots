@@ -2603,9 +2603,29 @@ def profile():
             }}
             .block-container {{
                 max-width: 1120px !important;
-                padding: 10px 10px 12px !important;
+                min-height: 100vh !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow: visible !important;
+                padding: 10px 10px 110px !important;
+            }}
+            html,
+            body,
+            [data-testid="stAppViewContainer"],
+            [data-testid="stAppViewContainer"] > .main,
+            section.main,
+            .main {{
+                min-height: 100% !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
             }}
             .stApp {{
+                min-height: 100vh !important;
+                height: auto !important;
+                max-height: none !important;
+                overflow-y: auto !important;
                 background: #f4efe5 !important;
             }}
             .stApp::before {{
@@ -2710,6 +2730,14 @@ def profile():
                   margin-bottom: 10px;
                   padding: 18px 18px 14px;
                   color: #102f32;
+              }}
+              .profile-page-frame,
+              .profile-main-column,
+              .profile-shell,
+              div[class*="st-key-profile-step-card"] {{
+                  height: auto !important;
+                  max-height: none !important;
+                  overflow: visible !important;
               }}
             .setup-steps {{
                 display: flex;
@@ -3027,6 +3055,29 @@ def profile():
                 box-shadow: 0 12px 24px rgba(23,107,77,.13) !important;
                 font-size: .86rem !important;
             }}
+            .nesto-profile-actions {{
+                position: sticky;
+                bottom: 0;
+                z-index: 20;
+                display: grid;
+                grid-template-columns: minmax(150px, .85fr) minmax(220px, 1.4fr);
+                gap: 14px;
+                align-items: center;
+                margin: 18px -4px -4px;
+                padding: 14px 4px 6px;
+                background: linear-gradient(180deg, rgba(250,246,237,.72), rgba(250,246,237,.98));
+                border-top: 1px solid rgba(30, 80, 60, 0.12);
+                backdrop-filter: blur(10px);
+                -webkit-backdrop-filter: blur(10px);
+            }}
+            .nesto-profile-actions.single {{
+                grid-template-columns: 1fr;
+            }}
+            @media (max-width: 760px) {{
+                .nesto-profile-actions {{
+                    grid-template-columns: 1fr;
+                }}
+            }}
             .stFormSubmitButton button {{
                 background: #176b4d !important;
                 color: #fff !important;
@@ -3312,38 +3363,41 @@ def profile():
             pass
         elif active_step == "profile":
             with st.container(key="profile-step-card-profile"):
-                _render_html('<div class="setup-section-title">Elderly User Information</div>')
-                c1, c2, c3, c4 = st.columns(4, gap="medium")
-                patient_name = _profile_text_input(c1, "Full name", "patient_name", current)
-                preferred_name = _profile_text_input(c2, "Preferred name", "preferred_name", current)
-                age = _profile_text_input(c3, "Age", "age", current)
-                robot_name = _profile_text_input(c4, "Robot name", "robot_name", current)
-                _render_field_error(c1, active_field_errors, "patient_name")
-                _render_field_error(c2, active_field_errors, "preferred_name")
-                _render_field_error(c3, active_field_errors, "age")
-                _render_field_error(c4, active_field_errors, "robot_name")
+                with st.form("profile_step_profile_form", clear_on_submit=False):
+                    _render_html('<div class="setup-section-title">Elderly User Information</div>')
+                    c1, c2, c3, c4 = st.columns(4, gap="medium")
+                    patient_name = _profile_text_input(c1, "Full name", "patient_name", current)
+                    preferred_name = _profile_text_input(c2, "Preferred name", "preferred_name", current)
+                    age = _profile_text_input(c3, "Age", "age", current)
+                    robot_name = _profile_text_input(c4, "Robot name", "robot_name", current)
+                    _render_field_error(c1, active_field_errors, "patient_name")
+                    _render_field_error(c2, active_field_errors, "preferred_name")
+                    _render_field_error(c3, active_field_errors, "age")
+                    _render_field_error(c4, active_field_errors, "robot_name")
 
-                _render_html('<div class="setup-rule"></div><div class="setup-section-title">Guardian / Caregiver details</div>')
-                c1, c2, c3, c4 = st.columns(4, gap="medium")
-                guardian_name = _profile_text_input(c1, "Guardian / Caregiver name", "next_of_kin_name", current)
-                relationship = _profile_selectbox(c2, "Relationship to elderly user", "relationship", current, RELATIONSHIP_OPTIONS)
-                guardian_phone = _profile_text_input(c3, "Phone number", "next_of_kin_phone", current)
-                caregiver_name = _profile_text_input(c4, "Caregiver name, if different", "caregiver_name", current)
-                _render_field_error(c1, active_field_errors, "next_of_kin_name")
-                _render_field_error(c2, active_field_errors, "relationship")
-                _render_field_error(c3, active_field_errors, "next_of_kin_phone")
-                _render_field_error(c4, active_field_errors, "caregiver_name")
-                relationship_other = ""
-                if relationship == "Other":
-                    relationship_other = st.text_input(
-                        "Relationship details",
-                        value=str(current.get("relationship_other", "") or ""),
-                        placeholder="Example: neighbour",
-                        key="profile_input_relationship_other",
-                    )
+                    _render_html('<div class="setup-rule"></div><div class="setup-section-title">Guardian / Caregiver details</div>')
+                    c1, c2, c3, c4 = st.columns(4, gap="medium")
+                    guardian_name = _profile_text_input(c1, "Guardian / Caregiver name", "next_of_kin_name", current)
+                    relationship = _profile_selectbox(c2, "Relationship to elderly user", "relationship", current, RELATIONSHIP_OPTIONS)
+                    guardian_phone = _profile_text_input(c3, "Phone number", "next_of_kin_phone", current)
+                    caregiver_name = _profile_text_input(c4, "Caregiver name, if different", "caregiver_name", current)
+                    _render_field_error(c1, active_field_errors, "next_of_kin_name")
+                    _render_field_error(c2, active_field_errors, "relationship")
+                    _render_field_error(c3, active_field_errors, "next_of_kin_phone")
+                    _render_field_error(c4, active_field_errors, "caregiver_name")
+                    relationship_other = ""
+                    if relationship == "Other":
+                        relationship_other = st.text_input(
+                            "Relationship details",
+                            value=str(current.get("relationship_other", "") or ""),
+                            placeholder="Example: neighbour",
+                            key="profile_input_relationship_other",
+                        )
 
-                _show_validation_errors(_flatten_field_errors(active_field_errors))
-                next_clicked = st.button("Next: Medicine Routine", type="primary", use_container_width=True, key="profile_next_medicine")
+                    _show_validation_errors(_flatten_field_errors(active_field_errors))
+                    _render_html('<div class="nesto-profile-actions single">')
+                    next_clicked = st.form_submit_button("Next: Medicine Routine", type="primary", use_container_width=True)
+                    _render_html("</div>")
                 if next_clicked:
                     profile_data = _profile_data_from_values(
                         current,
@@ -3369,56 +3423,59 @@ def profile():
 
         elif active_step == "medicine":
             with st.container(key="profile-step-card-medicine"):
-                _render_html('<div class="setup-section-title">Medicine Routine</div>')
-                c1, c2, c3, c4 = st.columns(4, gap="medium")
-                medicine_name = _profile_text_input(c1, "Medicine name", "medicine_name", current)
-                medicine_dose = _profile_text_input(c2, "Dose", "medicine_dose", current)
-                medicine_frequency = _profile_selectbox(c3, "Frequency", "medicine_frequency", current, FREQUENCY_OPTIONS)
-                medicine_time = c4.text_input(
-                    "Reminder time",
-                    value=str(current.get("medicine_time") or ""),
-                    placeholder="09:00",
-                    key="primary_medicine_time",
-                )
-                _render_field_error(c1, active_field_errors, "medicine_name")
-                _render_field_error(c2, active_field_errors, "medicine_dose")
-                _render_field_error(c3, active_field_errors, "medicine_frequency")
-                _render_field_error(c4, active_field_errors, "medicine_time")
-
-                additional_medicines = list(current.get("additional_medicines", []) or [])[: medicine_rows - 1]
-                while len(additional_medicines) < medicine_rows - 1:
-                    additional_medicines.append({"medicine_name": "", "dose": "", "frequency": "", "reminder_time": ""})
-                for row_index, item in enumerate(additional_medicines, start=2):
-                    _render_html(f'<div class="setup-rule"></div><div class="setup-section-title">Additional medicine {row_index}</div>')
-                    ac1, ac2, ac3, ac4 = st.columns(4, gap="medium")
-                    item["medicine_name"] = ac1.text_input("Medicine name", value=item.get("medicine_name", ""), key=f"medicine_name_{row_index}", placeholder="Optional medicine")
-                    item["dose"] = ac2.text_input("Dose", value=item.get("dose", ""), key=f"medicine_dose_{row_index}", placeholder="As prescribed")
-                    additional_frequency_options = ["Select"] + FREQUENCY_OPTIONS
-                    additional_frequency_index = additional_frequency_options.index(item.get("frequency", "")) if item.get("frequency", "") in additional_frequency_options else 0
-                    selected_frequency = ac3.selectbox(
-                        "Frequency",
-                        additional_frequency_options,
-                        key=f"medicine_frequency_{row_index}",
-                        index=additional_frequency_index,
-                    )
-                    item["frequency"] = "" if selected_frequency == "Select" else selected_frequency
-                    item["reminder_time"] = ac4.text_input(
+                with st.form("profile_step_medicine_form", clear_on_submit=False):
+                    _render_html('<div class="setup-section-title">Medicine Routine</div>')
+                    c1, c2, c3, c4 = st.columns(4, gap="medium")
+                    medicine_name = _profile_text_input(c1, "Medicine name", "medicine_name", current)
+                    medicine_dose = _profile_text_input(c2, "Dose", "medicine_dose", current)
+                    medicine_frequency = _profile_selectbox(c3, "Frequency", "medicine_frequency", current, FREQUENCY_OPTIONS)
+                    medicine_time = c4.text_input(
                         "Reminder time",
-                        value=str(item.get("reminder_time") or ""),
-                        key=f"medicine_time_{row_index}",
-                        placeholder="14:00",
+                        value=str(current.get("medicine_time") or ""),
+                        placeholder="09:00",
+                        key="primary_medicine_time",
                     )
-                    _render_field_error(ac1, active_field_errors, f"additional_{row_index}_medicine_name")
-                    _render_field_error(ac2, active_field_errors, f"additional_{row_index}_dose")
-                    _render_field_error(ac3, active_field_errors, f"additional_{row_index}_frequency")
-                    _render_field_error(ac4, active_field_errors, f"additional_{row_index}_reminder_time")
+                    _render_field_error(c1, active_field_errors, "medicine_name")
+                    _render_field_error(c2, active_field_errors, "medicine_dose")
+                    _render_field_error(c3, active_field_errors, "medicine_frequency")
+                    _render_field_error(c4, active_field_errors, "medicine_time")
 
-                _show_validation_errors(_flatten_field_errors(active_field_errors))
-                action_cols = st.columns([1, 1.15, 1, 1.25], gap="medium")
-                back_clicked = action_cols[0].button("Back", use_container_width=True, key="medicine_back_profile")
-                add_clicked = action_cols[1].button("+ Add medicine", use_container_width=True, key="medicine_add_row")
-                remove_clicked = action_cols[2].button("Remove last", use_container_width=True, key="medicine_remove_row") if medicine_rows > 1 else False
-                next_clicked = action_cols[3].button("Next: Preferences", type="primary", use_container_width=True, key="medicine_next_preferences")
+                    additional_medicines = list(current.get("additional_medicines", []) or [])[: medicine_rows - 1]
+                    while len(additional_medicines) < medicine_rows - 1:
+                        additional_medicines.append({"medicine_name": "", "dose": "", "frequency": "", "reminder_time": ""})
+                    for row_index, item in enumerate(additional_medicines, start=2):
+                        _render_html(f'<div class="setup-rule"></div><div class="setup-section-title">Additional medicine {row_index}</div>')
+                        ac1, ac2, ac3, ac4 = st.columns(4, gap="medium")
+                        item["medicine_name"] = ac1.text_input("Medicine name", value=item.get("medicine_name", ""), key=f"medicine_name_{row_index}", placeholder="Optional medicine")
+                        item["dose"] = ac2.text_input("Dose", value=item.get("dose", ""), key=f"medicine_dose_{row_index}", placeholder="As prescribed")
+                        additional_frequency_options = ["Select"] + FREQUENCY_OPTIONS
+                        additional_frequency_index = additional_frequency_options.index(item.get("frequency", "")) if item.get("frequency", "") in additional_frequency_options else 0
+                        selected_frequency = ac3.selectbox(
+                            "Frequency",
+                            additional_frequency_options,
+                            key=f"medicine_frequency_{row_index}",
+                            index=additional_frequency_index,
+                        )
+                        item["frequency"] = "" if selected_frequency == "Select" else selected_frequency
+                        item["reminder_time"] = ac4.text_input(
+                            "Reminder time",
+                            value=str(item.get("reminder_time") or ""),
+                            key=f"medicine_time_{row_index}",
+                            placeholder="14:00",
+                        )
+                        _render_field_error(ac1, active_field_errors, f"additional_{row_index}_medicine_name")
+                        _render_field_error(ac2, active_field_errors, f"additional_{row_index}_dose")
+                        _render_field_error(ac3, active_field_errors, f"additional_{row_index}_frequency")
+                        _render_field_error(ac4, active_field_errors, f"additional_{row_index}_reminder_time")
+
+                    _show_validation_errors(_flatten_field_errors(active_field_errors))
+                    _render_html('<div class="nesto-profile-actions">')
+                    action_cols = st.columns([1, 1.15, 1, 1.25], gap="medium")
+                    back_clicked = action_cols[0].form_submit_button("Back", use_container_width=True)
+                    add_clicked = action_cols[1].form_submit_button("+ Add medicine", use_container_width=True)
+                    remove_clicked = action_cols[2].form_submit_button("Remove last", use_container_width=True) if medicine_rows > 1 else False
+                    next_clicked = action_cols[3].form_submit_button("Next: Preferences", type="primary", use_container_width=True)
+                    _render_html("</div>")
                 if back_clicked or add_clicked or remove_clicked or next_clicked:
                     profile_data = _profile_data_from_values(
                         current,
@@ -3452,43 +3509,46 @@ def profile():
 
         elif active_step == "preferences":
             with st.container(key="profile-step-card-preferences"):
-                _render_html('<div class="setup-section-title">Preferences</div>')
-                c1, c2, c3, c4 = st.columns(4, gap="medium")
-                important_object = _profile_text_input(c1, "Important object to find", "important_object", current)
-                preferred_tone = _profile_selectbox(c2, "Nesto tone", "preferred_tone", current, TONE_OPTIONS)
-                preferred_language = _profile_selectbox(c3, "Preferred language", "preferred_language", current, LANGUAGE_OPTIONS)
-                care_notes = _profile_text_input(c4, "Care notes", "care_notes", current)
-                _render_field_error(c1, active_field_errors, "important_object")
-                _render_field_error(c2, active_field_errors, "preferred_tone")
-                _render_field_error(c3, active_field_errors, "preferred_language")
-                _render_field_error(c4, active_field_errors, "care_notes")
-                language_other = ""
-                if preferred_language == "Other":
-                    language_other = st.text_input(
-                        "Preferred language details",
-                        value=str(current.get("preferred_language_other", "") or ""),
-                        placeholder="Language",
-                        key="profile_input_preferred_language_other",
+                with st.form("profile_step_preferences_form", clear_on_submit=False):
+                    _render_html('<div class="setup-section-title">Preferences</div>')
+                    c1, c2, c3, c4 = st.columns(4, gap="medium")
+                    important_object = _profile_text_input(c1, "Important object to find", "important_object", current)
+                    preferred_tone = _profile_selectbox(c2, "Nesto tone", "preferred_tone", current, TONE_OPTIONS)
+                    preferred_language = _profile_selectbox(c3, "Preferred language", "preferred_language", current, LANGUAGE_OPTIONS)
+                    care_notes = _profile_text_input(c4, "Care notes", "care_notes", current)
+                    _render_field_error(c1, active_field_errors, "important_object")
+                    _render_field_error(c2, active_field_errors, "preferred_tone")
+                    _render_field_error(c3, active_field_errors, "preferred_language")
+                    _render_field_error(c4, active_field_errors, "care_notes")
+                    language_other = ""
+                    if preferred_language == "Other":
+                        language_other = st.text_input(
+                            "Preferred language details",
+                            value=str(current.get("preferred_language_other", "") or ""),
+                            placeholder="Language",
+                            key="profile_input_preferred_language_other",
+                        )
+                    user_preferences = st.text_area(
+                        "Extra preferences for Nesto memory",
+                        value=str(current.get("user_preferences", "") or ""),
+                        placeholder=PROFILE_PLACEHOLDERS["user_preferences"],
+                        key="profile_input_user_preferences",
                     )
-                user_preferences = st.text_area(
-                    "Extra preferences for Nesto memory",
-                    value=str(current.get("user_preferences", "") or ""),
-                    placeholder=PROFILE_PLACEHOLDERS["user_preferences"],
-                    key="profile_input_user_preferences",
-                )
-                _show_validation_errors(_flatten_field_errors(active_field_errors))
-                back_col, next_col = st.columns([1, 1.4], gap="medium")
-                back_clicked = back_col.button("Back", use_container_width=True, key="preferences_back_medicine")
-                next_clicked = next_col.button("Next: Consent & Review", type="primary", use_container_width=True, key="preferences_next_review")
-                profile_data = _profile_data_from_values(
-                    current,
-                    important_object=important_object,
-                    preferred_tone=preferred_tone,
-                    preferred_language=language_other or preferred_language,
-                    preferred_language_other=language_other,
-                    care_notes=care_notes,
-                    user_preferences=user_preferences,
-                )
+                    _show_validation_errors(_flatten_field_errors(active_field_errors))
+                    _render_html('<div class="nesto-profile-actions">')
+                    back_col, next_col = st.columns([1, 1.4], gap="medium")
+                    back_clicked = back_col.form_submit_button("Back", use_container_width=True)
+                    next_clicked = next_col.form_submit_button("Next: Consent & Review", type="primary", use_container_width=True)
+                    _render_html("</div>")
+                    profile_data = _profile_data_from_values(
+                        current,
+                        important_object=important_object,
+                        preferred_tone=preferred_tone,
+                        preferred_language=language_other or preferred_language,
+                        preferred_language_other=language_other,
+                        care_notes=care_notes,
+                        user_preferences=user_preferences,
+                    )
                 if back_clicked:
                     st.session_state["care_profile_form"] = profile_data
                     _clear_field_errors()
@@ -3513,16 +3573,20 @@ def profile():
             _render_html('<div class="profile-shell"><div class="setup-section-title">Consent & Review</div>')
             _render_html(_profile_summary_html(profile_data))
             _render_html("</div>")
-            _render_account_setup_fields()
             _render_consent_cards()
-            c1, c2 = st.columns([1, 1.4], gap="medium")
-            if c1.button("Back", use_container_width=True):
+            if not _all_consent_accepted():
+                _render_html('<div class="nesto-warning-banner">Please read and accept the Terms, Privacy Notice, and Consent Checklist before saving.</div>')
+            with st.form("profile_step_review_form", clear_on_submit=False):
+                _render_account_setup_fields()
+                _render_html('<div class="nesto-profile-actions">')
+                c1, c2 = st.columns([1, 1.4], gap="medium")
+                back_clicked = c1.form_submit_button("Back", use_container_width=True)
+                create_clicked = c2.form_submit_button("Create Profile", type="primary", use_container_width=True)
+                _render_html("</div>")
+            if back_clicked:
                 _set_profile_step("preferences")
                 st.rerun()
-            save_disabled = not _all_consent_accepted()
-            if save_disabled:
-                _render_html('<div class="nesto-warning-banner">Please read and accept the Terms, Privacy Notice, and Consent Checklist before saving.</div>')
-            if c2.button("Save and continue", type="primary", use_container_width=True, disabled=save_disabled):
+            if create_clicked:
                 errors = []
                 errors.extend(_validate_profile_step(profile_data))
                 errors.extend(_validate_medicine_step(profile_data))
