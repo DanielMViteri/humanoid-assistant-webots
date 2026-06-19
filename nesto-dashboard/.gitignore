@@ -1,0 +1,53 @@
+# Secrets - never upload
+.env
+.env.local
+.streamlit/secrets.toml
+
+# Python environments and cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Node/frontend build output
+node_modules/
+dist/
+build/
+
+# Local generated data and logs
+chroma_memory/
+*.sqlite
+*.log
+connection_proof_latest.txt
+.kafka_offsets.json
+.kafka_runtime_status.json
+
+# OS files
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+!.env.example
+
+# Python environment/cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.log
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Local runtime/cache/database files
+chroma_memory/
+.kafka_offsets.json
+.kafka_runtime_status.json
+connection_proof_latest.txt
+
+# Browser/network debug files
+*.har
+
+# Ignore full local Streamlit folder
+.streamlit/
