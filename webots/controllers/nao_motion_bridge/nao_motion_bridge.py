@@ -1,14 +1,22 @@
-"""Motion bridge for the official NAO Saturday demo.
+"""Motion bridge and on-board perception producer for the official NAO demo.
 
-The supervisor decides high-level locomotion intent and writes it to the shared
-motion state file. This controller turns that intent into official Webots NAO
-motion playback so the robot uses its built-in walking and turning motions
-instead of being manually posed.
+Two responsibilities:
+
+1. Motion playback (unchanged): the supervisor decides high-level locomotion
+   intent and writes it to the shared motion state file; this controller turns
+   that intent into official Webots NAO motion playback.
+2. Perception producer (new): this controller owns the NAO's head devices, so it
+   reads the head recognition camera (target detection) and the head depth camera
+   (RangeFinder, obstacle clearance) and publishes a perception feed that the
+   supervisor consumes for camera-driven navigation. Only the robot's own
+   controller can read its devices, hence the file bridge.
 """
 
 from __future__ import annotations
 
 import json
+import math
+import time
 from pathlib import Path
 
 try:
@@ -19,8 +27,14 @@ except ImportError as exc:
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
+PERCEPTION_PATH = PROJECT_ROOT / "data" / "raw" / "webots_perception.json"
+RECOGNITION_IMAGE_PATH = PROJECT_ROOT / "data" / "raw" / "recognition_camera_view.png"
 MOTION_ROOT = PROJECT_ROOT / "webots" / "motions" / "nao"
-CONTROLLER_VERSION = "2026-06-12-nao-motion-bridge-v4"
+CONTROLLER_VERSION = "2026-06-19-nao-motion-bridge-v7-perception"
+PERCEPTION_INTERVAL_SECONDS = 0.2
+IMAGE_SAVE_EVERY_N = 0  # set >0 to periodically dump the recognition camera view (debug only)
+RECOGNITION_CAMERA_NAME = "recognition_camera"
+DEPTH_CAMERA_NAME = "depth_camera"
 MOTION_FILES = {
     "walk_forward": "Forwards50.motion",
     "turn_left": "TurnLeft40.motion",
@@ -28,6 +42,139 @@ MOTION_FILES = {
     "hand_wave": "HandWave.motion",
     "support": "WipeForehead.motion",
 }
+OBJECT_ALIASES = {
+    "walking_stick": "cane",
+    "pill_box": "medicine_box",
+    "medication_box": "medicine_box",
+}
+
+
+def epoch_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def normalize_object_name(raw_name: str) -> str:
+    name = (raw_name or "unknown_object").strip().lower().replace(" ", "_")
+    return OBJECT_ALIASES.get(name, name)
+
+
+def _call_first(item, names: tuple[str, ...]):
+    """Call the first available method name on item (handles snake/camel API variants)."""
+    for name in names:
+        fn = getattr(item, name, None)
+        if fn is None:
+            continue
+        try:
+            return fn()
+        except Exception:
+            continue
+    return None
+
+
+def _object_model(item) -> str:
+    model = _call_first(item, ("getModel", "get_model"))
+    return str(model) if model else "recognized_object"
+
+
+def _object_position(item) -> list[float]:
+    position = _call_first(item, ("getPosition", "get_position"))
+    try:
+        return [float(value) for value in position]
+    except Exception:
+        return [0.0, 0.0, 0.0]
+
+
+def _object_image_x(item):
+    pixel = _call_first(item, ("getPositionOnImage", "get_position_on_image"))
+    try:
+        return float(pixel[0])
+    except Exception:
+        return None
+
+
+def detections_from_camera(camera) -> list[dict]:
+    """Build target detections from the head recognition camera.
+
+    bearing_rad is derived from the object's horizontal image position so it does
+    not depend on the camera's coordinate-frame axis convention:
+    positive bearing => target is to the robot's right (turn right to face it).
+    """
+    if camera is None:
+        return []
+    try:
+        objects = camera.getRecognitionObjects()
+    except Exception:
+        return []
+
+    width = float(camera.getWidth() or 1)
+    field_of_view = float(camera.getFov() or 1.0)
+    detections: list[dict] = []
+    for item in objects:
+        position = _object_position(item)
+        distance = round(math.sqrt(sum(value * value for value in position[:3])), 3)
+        image_x = _object_image_x(item)
+        if image_x is not None and width > 1:
+            bearing = (image_x - width / 2.0) / width * field_of_view
+        else:
+            # Fallback: assume camera looks down +x, lateral on +y to the left.
+            bearing = math.atan2(-position[1], max(position[0], 1e-3))
+        detections.append(
+            {
+                "object": normalize_object_name(_object_model(item)),
+                "confidence": 0.9,
+                "distance_m": distance,
+                "bearing_rad": round(bearing, 4),
+            }
+        )
+    return detections
+
+
+def depth_sectors(depth_camera) -> dict | None:
+    """Split the depth image into left/center/right column bands and report the
+    nearest finite obstacle distance in each. 'left' is the robot's left side."""
+    if depth_camera is None:
+        return None
+    try:
+        image = depth_camera.getRangeImage()
+    except Exception:
+        return None
+    if not image:
+        return None
+
+    width = int(depth_camera.getWidth())
+    height = int(depth_camera.getHeight())
+    max_range = float(depth_camera.getMaxRange() or 4.0)
+    if width <= 0 or height <= 0:
+        return None
+
+    # Only sample the middle rows so the near floor (and the robot's own feet,
+    # visible in the lower image when the camera is pitched down) don't get
+    # mistaken for obstacles. This keeps clearance to upright objects ahead.
+    row_start = height // 4
+    row_end = max(row_start + 1, (3 * height) // 4)
+
+    third = max(1, width // 3)
+    bands = {"left_m": (0, third), "center_m": (third, 2 * third), "right_m": (2 * third, width)}
+    sectors: dict[str, float] = {}
+    overall_nearest = max_range
+    overall_found = False
+    for key, (col_start, col_end) in bands.items():
+        nearest = max_range
+        found = False
+        for row in range(row_start, row_end):
+            base = row * width
+            for col in range(col_start, col_end):
+                value = image[base + col]
+                if math.isfinite(value) and value > 0 and value < nearest:
+                    nearest = value
+                    found = True
+        sectors[key] = round(nearest, 3) if found else round(max_range, 3)
+        if found and nearest < overall_nearest:
+            overall_nearest = nearest
+            overall_found = True
+
+    sectors["min_m"] = round(overall_nearest, 3) if overall_found else round(max_range, 3)
+    return sectors
 
 
 class NaoMotionBridge(Robot):
@@ -39,6 +186,10 @@ class NaoMotionBridge(Robot):
         self.current_motion: Motion | None = None
         self.current_loop = False
         self.last_state_signature: tuple[str, str, bool, int] | None = None
+        self.last_perception_time = 0.0
+        self.perception_writes = 0
+        self.recognition_camera = self._init_recognition_camera()
+        self.depth_camera = self._init_depth_camera()
         print(f"nao_motion_bridge version: {CONTROLLER_VERSION}")
         print(f"nao_motion_bridge motions: {sorted(self.motions)}")
 
@@ -51,6 +202,33 @@ class NaoMotionBridge(Robot):
             motions[name] = Motion(str(motion_path))
         return motions
 
+    def _init_recognition_camera(self):
+        camera = self.getDevice(RECOGNITION_CAMERA_NAME)
+        if camera is None:
+            print(f"WARNING: '{RECOGNITION_CAMERA_NAME}' not found; target detection disabled.")
+            return None
+        try:
+            camera.enable(self.time_step)
+            camera.recognitionEnable(self.time_step)
+            print(f"nao_motion_bridge recognition camera: {RECOGNITION_CAMERA_NAME} enabled")
+        except Exception as exc:
+            print(f"WARNING: could not enable recognition on '{RECOGNITION_CAMERA_NAME}': {exc}")
+            return None
+        return camera
+
+    def _init_depth_camera(self):
+        depth = self.getDevice(DEPTH_CAMERA_NAME)
+        if depth is None:
+            print(f"WARNING: '{DEPTH_CAMERA_NAME}' not found; obstacle sensing disabled.")
+            return None
+        try:
+            depth.enable(self.time_step)
+            print(f"nao_motion_bridge depth camera: {DEPTH_CAMERA_NAME} enabled")
+        except Exception as exc:
+            print(f"WARNING: could not enable '{DEPTH_CAMERA_NAME}': {exc}")
+            return None
+        return depth
+
     def read_motion_state(self) -> dict:
         if not MOTION_STATE_PATH.exists():
             return {"state": "idle", "motion": "idle", "loop": False}
@@ -58,6 +236,48 @@ class NaoMotionBridge(Robot):
             return json.loads(MOTION_STATE_PATH.read_text(encoding="utf-8"))
         except Exception:
             return {"state": "idle", "motion": "idle", "loop": False}
+
+    def write_perception(self) -> None:
+        rec = self.recognition_camera
+        recognition_enabled = False
+        recognition_count = -1
+        if rec is not None:
+            try:
+                recognition_enabled = bool(rec.hasRecognition())
+            except Exception:
+                recognition_enabled = True  # older API without hasRecognition()
+            try:
+                recognition_count = int(rec.getRecognitionNumberOfObjects())
+            except Exception:
+                recognition_count = -1
+        payload = {
+            "timestamp": epoch_ms(),
+            "source": "nao_head_camera",
+            "detections": detections_from_camera(rec),
+            "depth": depth_sectors(self.depth_camera),
+            "recognition_enabled": recognition_enabled,
+            "recognition_object_count": recognition_count,
+        }
+        PERCEPTION_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+        # Debug aid: periodically dump what the recognition camera actually sees.
+        self.perception_writes += 1
+        if IMAGE_SAVE_EVERY_N and rec is not None and self.perception_writes % IMAGE_SAVE_EVERY_N == 0:
+            try:
+                rec.saveImage(str(RECOGNITION_IMAGE_PATH), 100)
+            except Exception:
+                pass
+
+        text = json.dumps(payload, indent=2)
+        for attempt in range(6):
+            try:
+                PERCEPTION_PATH.write_text(text, encoding="utf-8")
+                return
+            except OSError:
+                # Includes PermissionError and Windows/OneDrive EINVAL (Errno 22).
+                if attempt == 5:
+                    return
+                time.sleep(0.05)
 
     def stop_current_motion(self) -> None:
         if self.current_motion is not None:
@@ -104,6 +324,11 @@ class NaoMotionBridge(Robot):
                     f"loop={loop} sequence={sequence}"
                 )
                 self.start_motion(motion_name, loop)
+
+            now = time.time()
+            if now - self.last_perception_time >= PERCEPTION_INTERVAL_SECONDS:
+                self.last_perception_time = now
+                self.write_perception()
 
 
 if __name__ == "__main__":

@@ -295,6 +295,29 @@ DEF NAO_ASSISTANT Nao {
   controller "nao_motion_bridge"
   cameraWidth 320
   cameraHeight 240
+  headSlot [
+    Camera {
+      translation 0.06 0 0.05
+      rotation 0 1 0 0.18
+      name "recognition_camera"
+      width 320
+      height 240
+      fieldOfView 1.5
+      recognition Recognition {
+        maxRange 4.0
+      }
+    }
+    RangeFinder {
+      translation 0.06 0 0.05
+      rotation 0 1 0 0.18
+      name "depth_camera"
+      width 64
+      height 48
+      fieldOfView 1.5
+      minRange 0.05
+      maxRange 4.0
+    }
+  ]
 }
 Robot {
   name "demo_supervisor"

@@ -81,6 +81,19 @@ OBSTACLE_LABELS = {
 }
 PRESENTATION_HOME = [-1.55, -3.0, NAVIGATION_HEIGHT]
 
+# Camera-driven navigation (sense-and-steer from the NAO head perception feed).
+# Disabled for now: the discrete .motion turn granularity (~40 deg) overshoots the
+# centering tolerance and the head-camera aim does not track body heading reliably,
+# so the robot circled instead of reaching the target. The proven god-mode route
+# planner is used instead. Flip back to True to resume tuning camera-driven nav.
+PERCEPTION_PATH = PROJECT_ROOT / "data" / "raw" / "webots_perception.json"
+CAMERA_NAV_ENABLED = False
+CAMERA_FALLBACK_ENABLED = True
+PERCEPTION_MAX_AGE_SECONDS = 1.0
+SAFE_FORWARD_CLEARANCE_M = 0.6
+TARGET_BEARING_TOLERANCE_RAD = 0.30
+CAMERA_NAV_ACTIONS = {"search_object", "check_medicine"}
+
 
 def epoch_ms() -> int:
     return int(time.time() * 1000)
@@ -102,6 +115,14 @@ def create_event(event_type: str, payload: dict, timestamp: int | None = None) -
     return event
 
 
+def _safe_print(text: str) -> None:
+    """Print without ever crashing the controller (Webots console writes can raise OSError)."""
+    try:
+        print(text)
+    except OSError:
+        pass
+
+
 def write_events(events: list[dict]) -> None:
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     lines = [json.dumps(event, separators=(",", ":")) for event in events]
@@ -111,13 +132,13 @@ def write_events(events: list[dict]) -> None:
                 for compact in lines:
                     output_file.write(compact + "\n")
             for compact in lines:
-                print(compact)
+                _safe_print(compact)
             return
-        except PermissionError as exc:
+        except OSError as exc:
+            # Includes PermissionError and Windows/OneDrive EINVAL (Errno 22).
+            # Event logging must never crash the robot, so warn and continue.
             if attempt == 5:
-                print(f"WARNING: could not append Webots events after retries: {exc}")
-                for compact in lines:
-                    print(compact)
+                _safe_print(f"WARNING: could not append Webots events after retries: {exc}")
                 return
             time.sleep(0.15)
 
@@ -129,9 +150,9 @@ def write_motion_state(state: dict) -> None:
         try:
             MOTION_STATE_PATH.write_text(payload, encoding="utf-8")
             return
-        except PermissionError as exc:
+        except OSError as exc:
             if attempt == 5:
-                print(f"WARNING: could not write motion state after retries: {exc}")
+                _safe_print(f"WARNING: could not write motion state after retries: {exc}")
                 return
             time.sleep(0.1)
 
@@ -276,6 +297,131 @@ def find_target_object(detected_objects: list[dict], target_object: str | None) 
         if normalize_object_name(detected["object"]) == target:
             return detected
     return None
+
+
+def read_perception() -> dict | None:
+    """Read the on-board perception feed produced by the NAO motion bridge."""
+    if not PERCEPTION_PATH.exists():
+        return None
+    try:
+        return json.loads(PERCEPTION_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+
+def perception_is_fresh(perception: dict | None) -> bool:
+    if not perception:
+        return False
+    timestamp = perception.get("timestamp")
+    if not isinstance(timestamp, int):
+        return False
+    age_seconds = (epoch_ms() - timestamp) / 1000.0
+    return 0.0 <= age_seconds <= PERCEPTION_MAX_AGE_SECONDS
+
+
+def camera_detections(perception: dict | None) -> list[dict]:
+    """Adapt the camera perception feed to the detection shape the event code expects.
+
+    A relative position is synthesized from bearing + distance so downstream event
+    payloads keep the same structure as the god-mode detections.
+    """
+    detections: list[dict] = []
+    if not perception:
+        return detections
+    for detected in perception.get("detections", []):
+        try:
+            distance = float(detected.get("distance_m", 0.0))
+            bearing = float(detected.get("bearing_rad", 0.0))
+        except Exception:
+            continue
+        detections.append(
+            {
+                "object": normalize_object_name(detected.get("object", "")),
+                "confidence": float(detected.get("confidence", 0.9)),
+                "relative_position": {
+                    "x": round(distance * math.sin(bearing), 3),
+                    "y": 0.0,
+                    "z": round(distance * math.cos(bearing), 3),
+                },
+                "distance_m": round(distance, 3),
+                "bearing_rad": round(bearing, 4),
+            }
+        )
+    return detections
+
+
+def perceive(robot: Supervisor, position: list[float], yaw: float, use_camera_nav: bool, perception: dict | None) -> list[dict]:
+    """Return detections from the head camera when camera-nav is active, else god-mode."""
+    if use_camera_nav:
+        return camera_detections(perception)
+    return detect_visible_objects(robot, position, yaw)
+
+
+def target_from_perception(perception: dict | None, target_object: str | None) -> dict | None:
+    """Pick the nearest camera detection matching the requested target object."""
+    if not perception or not target_object:
+        return None
+    target = normalize_object_name(target_object)
+    best: dict | None = None
+    for detected in perception.get("detections", []):
+        if normalize_object_name(detected.get("object", "")) != target:
+            continue
+        if best is None or float(detected.get("distance_m", 1e9)) < float(best.get("distance_m", 1e9)):
+            best = detected
+    return best
+
+
+def current_target_distance(
+    use_camera_nav: bool,
+    camera_target: dict | None,
+    position: list[float],
+    target_position: list[float] | None,
+) -> float | None:
+    if use_camera_nav:
+        if camera_target is None:
+            return None
+        try:
+            return round(float(camera_target.get("distance_m")), 3)
+        except Exception:
+            return None
+    return planar_distance(position, target_position) if target_position is not None else None
+
+
+def perception_min_clearance(perception: dict | None) -> float | None:
+    depth = (perception or {}).get("depth") or {}
+    value = depth.get("min_m")
+    try:
+        return round(float(value), 3) if value is not None else None
+    except Exception:
+        return None
+
+
+def reactive_motion(perception: dict | None, target_object: str | None) -> str:
+    """Choose the next discrete motion chunk from sensed data (camera-driven).
+
+    Returns one of walk_forward / turn_left / turn_right / idle. bearing_rad is
+    positive when the target is to the robot's right, so we turn right to face it.
+    """
+    depth = (perception or {}).get("depth") or {}
+    center = float(depth.get("center_m", SAFE_FORWARD_CLEARANCE_M))
+    left = float(depth.get("left_m", center))
+    right = float(depth.get("right_m", center))
+    target = target_from_perception(perception, target_object)
+
+    if target is not None:
+        bearing = float(target.get("bearing_rad", 0.0))
+        distance = float(target.get("distance_m", 1e9))
+        if distance <= TARGET_REACHED_DISTANCE_METERS:
+            return "idle"
+        if abs(bearing) > TARGET_BEARING_TOLERANCE_RAD:
+            return "turn_right" if bearing > 0 else "turn_left"
+        if center < SAFE_FORWARD_CLEARANCE_M:
+            # Obstacle between us and the target: steer toward the more open side.
+            return "turn_left" if left >= right else "turn_right"
+        return "walk_forward"
+
+    # Target not in view: rotate in place to scan; never walk forward blindly.
+    return "turn_left"
 
 
 def estimate_obstacle_distance(robot: Supervisor, robot_position: list[float]) -> float | None:
@@ -610,6 +756,7 @@ def main() -> None:
     last_seen_target_time = -1.0
     announced_target_visibility: set[str] = set()
     announced_route_safety: set[str] = set()
+    fallback_warned = False
     write_motion_state(
         {
             "timestamp": epoch_ms(),
@@ -660,9 +807,15 @@ def main() -> None:
         target_def = KNOWN_OBJECTS.get(normalize_object_name(target_object or ""))
         target_position = get_position(get_node(robot, target_def)) if target_def else None
         yaw = get_yaw(nao_node)
-        detections = detect_visible_objects(robot, position, yaw)
+        perception = read_perception()
+        camera_nav_possible = CAMERA_NAV_ENABLED and action in CAMERA_NAV_ACTIONS
+        perception_fresh = perception_is_fresh(perception)
+        use_camera_nav = camera_nav_possible and perception_fresh
+        perception_source = "nao_head_camera" if use_camera_nav else "supervisor_godmode_fallback"
+        camera_target = target_from_perception(perception, target_object) if use_camera_nav else None
+        detections = perceive(robot, position, yaw, use_camera_nav, perception)
         target_detection = find_target_object(detections, target_object)
-        target_distance = planar_distance(position, target_position) if target_position is not None else None
+        target_distance = current_target_distance(use_camera_nav, camera_target, position, target_position)
         if target_detection is not None and target_position is not None:
             last_seen_target_position = [target_position[0], target_position[1], NAVIGATION_HEIGHT]
             last_seen_target_time = robot.getTime()
@@ -677,7 +830,32 @@ def main() -> None:
             and active_command_id not in completed_targets
         )
 
-        if navigation_is_active:
+        if navigation_is_active and use_camera_nav:
+            # Camera-driven: pick the next motion chunk from sensed data, keeping the
+            # existing chunk-commit machinery (motion_hold_until / MOTION_STEP_SECONDS).
+            if robot.getTime() < motion_hold_until and committed_motion != "idle":
+                locomotion_motion, locomotion_loop = committed_motion, False
+            else:
+                committed_motion = reactive_motion(perception, target_object)
+                locomotion_motion, locomotion_loop = committed_motion, False
+                motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS.get(committed_motion, 0.0)
+                motion_sequence += 1
+            last_search_position = None
+            stalled_search_steps = 0
+        elif navigation_is_active and camera_nav_possible and not perception_fresh and not CAMERA_FALLBACK_ENABLED:
+            # Camera-nav wanted but the feed is unavailable and fallback is disabled: hold.
+            if not fallback_warned:
+                print("Camera perception feed unavailable and fallback disabled; holding position.")
+                fallback_warned = True
+            locomotion_motion, locomotion_loop = "idle", False
+            committed_motion = "idle"
+            motion_hold_until = 0.0
+            last_search_position = None
+            stalled_search_steps = 0
+        elif navigation_is_active:
+            if camera_nav_possible and not perception_fresh and not fallback_warned:
+                print("Camera perception feed unavailable; falling back to god-mode navigation.")
+                fallback_warned = True
             if active_command_id != route_command_id:
                 route_command_id = active_command_id
                 active_route_index = 0
@@ -754,7 +932,7 @@ def main() -> None:
             position = get_position(nao_node) or position
             target_position = get_position(get_node(robot, target_def)) if target_def else None
             yaw = get_yaw(nao_node)
-            detections = detect_visible_objects(robot, position, yaw)
+            detections = perceive(robot, position, yaw, use_camera_nav, perception)
             target_detection = find_target_object(detections, target_object)
             if target_detection is not None and target_position is not None:
                 last_seen_target_position = [target_position[0], target_position[1], NAVIGATION_HEIGHT]
@@ -773,7 +951,7 @@ def main() -> None:
                 target_visible=target_detection is not None,
                 last_seen_target_position=remembered_target_position,
             )
-            target_distance_now = planar_distance(position, target_position) if target_position is not None else None
+            target_distance_now = current_target_distance(use_camera_nav, camera_target, position, target_position)
             navigation_goal_distance_now = planar_distance(position, navigation_goal) if navigation_goal is not None else None
             support_reached_now = (
                 action == "support_user"
@@ -816,7 +994,7 @@ def main() -> None:
         position = get_position(nao_node) or [0.0, 0.0, 0.0]
         yaw = get_yaw(nao_node)
         room = room_for_position(position)
-        detections = detect_visible_objects(robot, position, yaw)
+        detections = perceive(robot, position, yaw, use_camera_nav, perception)
         target_detection = find_target_object(detections, target_object)
         if target_detection is not None and target_position is not None:
             last_seen_target_position = [target_position[0], target_position[1], NAVIGATION_HEIGHT]
@@ -836,9 +1014,9 @@ def main() -> None:
             target_visible=target_detection is not None,
             last_seen_target_position=remembered_target_position,
         )
-        target_distance = planar_distance(position, target_position) if target_position is not None else None
+        target_distance = current_target_distance(use_camera_nav, camera_target, position, target_position)
         navigation_goal_distance = planar_distance(position, navigation_goal) if navigation_goal is not None else None
-        obstacle_distance = estimate_obstacle_distance(robot, position)
+        obstacle_distance = perception_min_clearance(perception) if use_camera_nav else estimate_obstacle_distance(robot, position)
         command_was_completed = active_command_id in completed_targets if active_command_id else False
         target_reached = target_distance is not None and target_distance <= TARGET_REACHED_DISTANCE_METERS
         support_reached = (
@@ -874,7 +1052,8 @@ def main() -> None:
                     "current_room": room,
                     "position": {"x": round(position[0], 3), "y": round(position[1], 3), "z": round(position[2], 3)},
                     "robot_model": "softbank_nao",
-                    "sensor_source": "webots_supervisor_visibility",
+                    "sensor_source": "nao_head_camera_recognition" if use_camera_nav else "webots_supervisor_visibility",
+                    "perception_source": perception_source,
                     "camera_enabled": True,
                     "range_sensor_enabled": True,
                     "search_state": (
@@ -982,6 +1161,7 @@ def main() -> None:
 
         if (
             navigation_is_active
+            and not use_camera_nav
             and action == "search_object"
             and normalize_object_name(target_object or "") == "cane"
             and target_position is not None
