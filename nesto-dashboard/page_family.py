@@ -463,6 +463,32 @@ def _render_object_search_interaction(object_key, scenario_type, title):
         st.rerun()
 
 
+def _latest_face_reading(max_age_seconds: int = 180) -> dict | None:
+    """Most recent DeepFace emotion the dashboard bridge wrote for a mood check, if recent."""
+    import time as _time
+
+    try:
+        import db_queries
+
+        doc = db_queries._db["mood_events"].find_one(
+            {"event_type": "mood_detected", "payload.trigger": "nesto_dashboard_mood_check"},
+            sort=[("timestamp", -1)],
+        )
+    except Exception:
+        return None
+    if not doc:
+        return None
+    payload = doc.get("payload") or {}
+    timestamp = int(doc.get("timestamp") or 0)
+    if max_age_seconds and (int(_time.time() * 1000) - timestamp) > max_age_seconds * 1000:
+        return None
+    return {
+        "mood": payload.get("mood"),
+        "confidence": float(payload.get("confidence") or 0.0),
+        "capture_mode": payload.get("capture_mode", "snapshot"),
+    }
+
+
 def _render_mood_interaction():
     selected = st.session_state.get("elder_mood_selected")
     _render_html(
@@ -490,6 +516,18 @@ def _render_mood_interaction():
             else:
                 st.info("Nesto saved this action locally and will try again.")
             st.rerun()
+
+    # Show what Nesto's camera sensed (written by the dashboard bridge a few seconds after the tap).
+    reading = _latest_face_reading()
+    if reading and reading.get("mood"):
+        st.info(
+            f"\U0001F9E0 Nesto looked at you and sensed **{str(reading['mood']).title()}** "
+            f"({reading['confidence'] * 100:.0f}% confident, {reading['capture_mode']})."
+        )
+    elif selected:
+        st.caption("Nesto is reading your expression with its camera… give it a few seconds, then refresh.")
+    if st.button("Refresh Nesto's reading", key="elder_mood_refresh_reading"):
+        st.rerun()
 
 
 def _render_emergency_interaction():

@@ -188,13 +188,95 @@ def handle_scenario_request(mongo: MongoEventClient, document: dict[str, Any], a
 # --------------------------------------------------------------------------- #
 # Mood check-ins -> real facial emotion recognition -> MongoDB
 # --------------------------------------------------------------------------- #
+def _analyze_snapshot_emotion(args: argparse.Namespace) -> dict | None:
+    """Single-frame webcam capture + DeepFace. Returns the analysis result or None."""
+    try:
+        from webcam_capture import capture_webcam_frame, webcam_error_hint
+        from emotion_deepface import analyze_face_emotion, deepface_error_hint
+    except Exception as exc:
+        print(f"[emotion] perception modules unavailable: {exc}")
+        return None
+    try:
+        frame = capture_webcam_frame(
+            device_index=args.device,
+            countdown_seconds=args.webcam_countdown,
+            label="nesto_mood_check",
+        )
+        print(f"[emotion] captured webcam frame: {frame}")
+    except Exception as exc:
+        print(f"[emotion] webcam capture FAILED: {exc.__class__.__name__}: {exc}")
+        try:
+            print(f"  Hint: {webcam_error_hint(exc)}")
+        except Exception:
+            pass
+        return None
+    try:
+        return analyze_face_emotion(frame, detector_backend=args.detector_backend)
+    except Exception as exc:
+        print(f"[emotion] DeepFace analysis FAILED: {exc.__class__.__name__}: {exc}")
+        try:
+            print(f"  Hint: {deepface_error_hint(exc)}")
+        except Exception:
+            pass
+        return None
+
+
+def _analyze_video_emotion(args: argparse.Namespace) -> dict | None:
+    """Multi-frame webcam clip + DeepFace, aggregated by majority vote. Returns result or None."""
+    from collections import Counter
+
+    try:
+        from webcam_capture import capture_webcam_frames, webcam_error_hint
+        from emotion_deepface import analyze_face_emotion, build_emotion_analysis_result
+    except Exception as exc:
+        print(f"[emotion] perception modules unavailable: {exc}")
+        return None
+    try:
+        frames = capture_webcam_frames(
+            device_index=args.device,
+            frames=args.video_frames,
+            interval_seconds=args.video_interval,
+            countdown_seconds=args.webcam_countdown,
+            label="nesto_mood_video",
+        )
+        print(f"[emotion] captured {len(frames)} webcam frames (video mode)")
+    except Exception as exc:
+        print(f"[emotion] webcam (video) capture FAILED: {exc.__class__.__name__}: {exc}")
+        try:
+            print(f"  Hint: {webcam_error_hint(exc)}")
+        except Exception:
+            pass
+        return None
+
+    summaries = []
+    for frame in frames:
+        try:
+            summaries.append(analyze_face_emotion(frame, detector_backend=args.detector_backend)["summary"])
+        except Exception:
+            continue
+    if not summaries:
+        print("[emotion] DeepFace found no analyzable face in the video clip.")
+        return None
+
+    emotions = [summary["dominant_emotion"] for summary in summaries]
+    dominant = Counter(emotions).most_common(1)[0][0]
+    matching = [s["confidence"] for s in summaries if s["dominant_emotion"] == dominant]
+    confidence = (sum(matching) / len(matching)) if matching else (sum(s["confidence"] for s in summaries) / len(summaries))
+    print(f"[emotion] video frames -> {dict(Counter(emotions))}; dominant '{dominant}'")
+    return build_emotion_analysis_result(
+        dominant_emotion=dominant,
+        confidence=confidence,
+        signals=[f"video_{len(summaries)}_frames", *emotions[:6]],
+        analysis_source="deepface_video",
+    )
+
+
 def run_emotion_recognition(mongo: MongoEventClient, document: dict[str, Any], args: argparse.Namespace) -> bool:
-    """Capture the webcam, run DeepFace, and write the detected emotion to MongoDB."""
+    """Capture the webcam (snapshot or video), run DeepFace, and write the detected emotion to MongoDB."""
     requested_mood = (document.get("payload") or {}).get("mood")
     source_event_id = document.get("event_id")
 
     if args.simulate_emotion:
-        # Test path: skip webcam/DeepFace and write a canned detected emotion.
         from emotion_deepface import build_emotion_analysis_result
 
         result = build_emotion_analysis_result(
@@ -203,57 +285,28 @@ def run_emotion_recognition(mongo: MongoEventClient, document: dict[str, Any], a
             signals=["simulated"],
             analysis_source="dashboard_simulated",
         )
+    elif args.video:
+        result = _analyze_video_emotion(args)
     else:
-        # Real path: lazy-import perception so the bridge stays robust if it is unavailable.
-        try:
-            from webcam_capture import capture_webcam_frame, webcam_error_hint
-        except Exception as exc:
-            print(f"[emotion] webcam module unavailable: {exc}")
-            return False
-        try:
-            frame = capture_webcam_frame(
-                device_index=args.device,
-                countdown_seconds=args.webcam_countdown,
-                label="nesto_mood_check",
-            )
-            print(f"[emotion] captured webcam frame: {frame}")
-        except Exception as exc:
-            print("[emotion] webcam capture FAILED")
-            print(f"  Reason: {exc.__class__.__name__}: {exc}")
-            try:
-                print(f"  Hint: {webcam_error_hint(exc)}")
-            except Exception:
-                pass
-            return False
+        result = _analyze_snapshot_emotion(args)
 
-        try:
-            from emotion_deepface import analyze_face_emotion, deepface_error_hint
-        except Exception as exc:
-            print(f"[emotion] deepface module unavailable: {exc}")
-            return False
-        try:
-            result = analyze_face_emotion(frame, detector_backend=args.detector_backend)
-        except Exception as exc:
-            print("[emotion] DeepFace analysis FAILED")
-            print(f"  Reason: {exc.__class__.__name__}: {exc}")
-            try:
-                print(f"  Hint: {deepface_error_hint(exc)}")
-            except Exception:
-                pass
-            return False
+    if result is None:
+        return False
 
     summary = result["summary"]
+    mode = "video" if args.video and not args.simulate_emotion else ("simulated" if args.simulate_emotion else "snapshot")
     # Tag the events so the dashboard can tie the detection back to the request.
     for event in result["events"]:
         event["payload"]["source_event_id"] = source_event_id
         event["payload"]["self_reported_mood"] = requested_mood
         event["payload"]["trigger"] = "nesto_dashboard_mood_check"
+        event["payload"]["capture_mode"] = mode
 
     inserted = mongo.insert_events(result["events"])
     print(
         f"[emotion] detected '{summary['dominant_emotion']}' "
         f"(confidence={summary['confidence']}, wellbeing={summary['wellbeing_score']}, "
-        f"self_reported={requested_mood}) -> MongoDB {inserted}"
+        f"mode={mode}, self_reported={requested_mood}) -> MongoDB {inserted}"
     )
     return True
 
@@ -309,6 +362,9 @@ def main() -> int:
     parser.add_argument("--device", type=int, default=0, help="Webcam device index for emotion recognition.")
     parser.add_argument("--webcam-countdown", type=int, default=3, help="Seconds before the webcam frame is captured.")
     parser.add_argument("--detector-backend", default="opencv", help="DeepFace detector backend.")
+    parser.add_argument("--video", action="store_true", help="Mood check: analyze a short multi-frame video clip (majority vote) instead of one snapshot.")
+    parser.add_argument("--video-frames", type=int, default=5, help="Frames to capture in --video mode.")
+    parser.add_argument("--video-interval", type=float, default=0.4, help="Seconds between frames in --video mode.")
     parser.add_argument("--simulate-emotion", default="", help="Skip webcam/DeepFace and record this emotion instead (testing).")
     args = parser.parse_args()
 
@@ -334,7 +390,12 @@ def main() -> int:
     if not args.no_scenarios:
         print(f"  scenario_events -> {WEBOTS_COMMAND_PATH}")
     if not args.no_emotion:
-        mode = f"SIMULATED ({args.simulate_emotion})" if args.simulate_emotion else f"webcam device {args.device} + DeepFace"
+        if args.simulate_emotion:
+            mode = f"SIMULATED ({args.simulate_emotion})"
+        elif args.video:
+            mode = f"webcam device {args.device} VIDEO {args.video_frames} frames + DeepFace"
+        else:
+            mode = f"webcam device {args.device} snapshot + DeepFace"
         print(f"  mood_events -> facial emotion recognition [{mode}] -> MongoDB")
 
     seen: set[str] = set()

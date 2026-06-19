@@ -68,3 +68,61 @@ def capture_webcam_frame(
         capture.release()
 
     return output_path
+
+
+def capture_webcam_frames(
+    *,
+    device_index: int = 0,
+    frames: int = 5,
+    interval_seconds: float = 0.4,
+    countdown_seconds: int = 3,
+    output_dir: Path = DEFAULT_WEBCAM_OUTPUT_DIR,
+    label: str = "webcam_video",
+    warmup_frames: int = 15,
+) -> list[Path]:
+    """Capture several webcam frames over a short window (a short 'video' clip).
+
+    Opens the camera once and grabs `frames` JPEGs spaced `interval_seconds` apart,
+    so a caller can analyze multiple frames for a more robust reading. Returns the
+    list of saved frame paths.
+    """
+    try:
+        import cv2
+    except ImportError as exc:
+        raise RuntimeError("opencv-python is not installed. Run: pip install -r requirements-perception.txt") from exc
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    if countdown_seconds > 0:
+        for remaining in range(countdown_seconds, 0, -1):
+            print(f"Webcam (video) capture in {remaining}...")
+            time.sleep(1)
+
+    backend = cv2.CAP_DSHOW if os.name == "nt" and hasattr(cv2, "CAP_DSHOW") else None
+    capture = cv2.VideoCapture(device_index, backend) if backend is not None else cv2.VideoCapture(device_index)
+    if not capture.isOpened():
+        raise RuntimeError(f"Could not open webcam device {device_index}.")
+
+    saved: list[Path] = []
+    try:
+        for _ in range(max(1, warmup_frames)):
+            capture.read()
+            time.sleep(0.02)
+
+        for index in range(max(1, frames)):
+            frame = None
+            for _ in range(3):  # flush the buffer for a fresh frame
+                ok, candidate = capture.read()
+                if ok:
+                    frame = candidate
+            if frame is None:
+                continue
+            output_path = output_dir / f"{label}_{current_epoch_ms()}_{index}.jpg"
+            if cv2.imwrite(str(output_path), frame):
+                saved.append(output_path)
+            time.sleep(max(0.0, interval_seconds))
+    finally:
+        capture.release()
+
+    if not saved:
+        raise RuntimeError("Webcam opened, but no frames were captured.")
+    return saved
