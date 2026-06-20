@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -31,14 +32,40 @@ from event_schema import create_event, current_epoch_ms
 from mongo_client import MongoEventClient, PROJECT_ROOT, load_dotenv, mongo_error_hint
 
 
+def load_memory_store():
+    """Import the dashboard's ChromaDB memory_store (shared chroma_memory dir).
+
+    memory_store lives in nesto-dashboard/ and its CHROMA_DIR is relative to its own
+    file, so importing it here writes/reads the exact same object memory the dashboard
+    uses. Returns the module or None if unavailable.
+    """
+    try:
+        dash = PROJECT_ROOT / "nesto-dashboard"
+        if str(dash) not in sys.path:
+            sys.path.insert(0, str(dash))
+        import memory_store  # type: ignore
+
+        return memory_store
+    except Exception as exc:  # noqa: BLE001
+        print(f"[memory] memory_store unavailable ({exc.__class__.__name__}: {exc}); object memory disabled.")
+        return None
+
+
 SCENARIO_EVENTS_COLLECTION = "scenario_events"
 MOOD_EVENTS_COLLECTION = "mood_events"
 CONVERSATION_EVENTS_COLLECTION = "conversation_events"
+ROBOT_STATUS_COLLECTION = "robot_status"
 WEBOTS_COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 DEFAULT_POLL_SECONDS = 3.0
 
 # Dashboard press-to-talk markers that should trigger a real mic recording.
 VOICE_LISTEN_SCENARIOS = {"voice_listen", "press_to_talk", "talk_listen"}
+
+# Object-location memory (ChromaDB). The robot reports robot_status with the
+# fixed DEFAULT_USER_ID, so object memory is keyed to that world-scoped id (read
+# under the same id by the dashboard). Objects we track a "last found at" room for.
+OBJECT_MEMORY_USER_ID = "elderly_user_01"
+MEMORY_OBJECTS = {"cane", "medicine_box"}
 
 # Aliases the dashboard may use for each actionable robot scenario.
 SCENARIO_ALIASES = {
@@ -397,8 +424,16 @@ def run_voice_capture(mongo: MongoEventClient, args: argparse.Namespace) -> bool
         return False
     print(f"[voice] transcript: {transcript}")
 
+    # If we remember where this object is, hand the NLP a recall note so the reply
+    # references it. The note is after a delimiter the dashboard strips from display.
+    text_for_nlp = transcript
+    hint = memory_recall_hint(getattr(args, "memory_store", None), transcript)
+    if hint:
+        print(f"[memory] recall: {hint}")
+        text_for_nlp = f"{transcript}{MEMORY_RECALL_DELIM} (Nesto remembers {hint}.)"
+
     try:
-        process_user_message(transcript, _build_voice_nlp_args(args), mongo=mongo)
+        process_user_message(text_for_nlp, _build_voice_nlp_args(args), mongo=mongo)
     except Exception as exc:
         print(f"[voice] NLP processing FAILED: {exc.__class__.__name__}: {exc}")
         return False
@@ -412,6 +447,78 @@ def handle_voice_request(mongo: MongoEventClient, document: dict[str, Any], args
     if scenario_type not in VOICE_LISTEN_SCENARIOS and trigger != "press_to_talk":
         return False  # an ordinary conversation event, not a press-to-talk request
     return run_voice_capture(mongo, args)
+
+
+# --------------------------------------------------------------------------- #
+# Object-location memory (ChromaDB): learn where the robot found each object
+# --------------------------------------------------------------------------- #
+def learn_object_locations(mongo: MongoEventClient, memory, learned: dict[str, str]) -> None:
+    """Record where the robot last FOUND each object into ChromaDB object memory.
+
+    Reads the most recent robot_status where the robot reached its target
+    (status == 'target_found') and saves target_object -> current_room. Idempotent
+    and de-duped via `learned`, so it only writes/logs when the location changes.
+    Needs robot_status in Atlas (telemetry streamer running).
+    """
+    if memory is None:
+        return
+    try:
+        doc = mongo.db[ROBOT_STATUS_COLLECTION].find_one(
+            {"payload.status": "target_found", "payload.target_object": {"$nin": [None, ""]}},
+            sort=[("timestamp", -1)],
+        )
+    except Exception:
+        return
+    if not doc:
+        return
+    payload = doc.get("payload") or {}
+    obj = normalize_target(payload.get("target_object"))
+    room = str(payload.get("current_room") or "").strip().replace("_", " ")
+    if obj not in MEMORY_OBJECTS or not room:
+        return
+    if learned.get(obj) == room:
+        return
+    try:
+        result = memory.save_object_memory(
+            OBJECT_MEMORY_USER_ID, obj, room,
+            metadata={"source": "dashboard_bridge", "learned_from": "robot_status.target_found"},
+        )
+    except Exception as exc:
+        print(f"[memory] save_object_memory failed: {exc.__class__.__name__}: {exc}")
+        return
+    if isinstance(result, dict) and result.get("connected"):
+        learned[obj] = room
+        print(f"[memory] learned {obj} -> {room} (saved to ChromaDB object memory)")
+    else:
+        print(f"[memory] could not persist {obj} location: {result}")
+
+
+# Appended to a voice transcript (after a delimiter the dashboard strips) so the
+# NLP reply recalls the remembered location instead of asking where it was.
+MEMORY_RECALL_DELIM = "\n\n[recall]"
+
+
+def memory_recall_hint(memory, transcript: str) -> str:
+    """If the transcript is about finding an object we remember, return a recall note."""
+    if memory is None:
+        return ""
+    low = str(transcript or "").lower()
+    obj = "cane" if "cane" in low else (
+        "medicine_box" if any(w in low for w in ("medicine", "medication", "pill")) else None
+    )
+    if not obj:
+        return ""
+    try:
+        result = memory.read_object_memory(OBJECT_MEMORY_USER_ID, obj)
+    except Exception:
+        return ""
+    if not (isinstance(result, dict) and result.get("status") == "found"):
+        return ""
+    location = ((result.get("memory") or {}).get("metadata") or {}).get("location")
+    if not location:
+        return ""
+    name = "cane" if obj == "cane" else "medicine box"
+    return f"the {name} was last seen in the {location}"
 
 
 # --------------------------------------------------------------------------- #
@@ -459,6 +566,7 @@ def main() -> int:
     parser.add_argument("--voice-duration", type=int, default=7, help="Seconds to record per press-to-talk request.")
     parser.add_argument("--voice-mock", action="store_true", help="Use the local mock NLP classifier instead of OpenAI for voice requests.")
     parser.add_argument("--voice-speak", action="store_true", help="Speak the robot reply with ElevenLabs after a voice request.")
+    parser.add_argument("--no-memory", action="store_true", help="Disable learning/recalling object locations in ChromaDB object memory.")
     parser.add_argument("--device", type=int, default=0, help="Webcam device index for emotion recognition.")
     parser.add_argument("--webcam-countdown", type=int, default=3, help="Seconds before the webcam frame is captured.")
     parser.add_argument("--detector-backend", default="opencv", help="DeepFace detector backend.")
@@ -486,6 +594,9 @@ def main() -> int:
     if not args.no_voice:
         handlers.append((CONVERSATION_EVENTS_COLLECTION, handle_voice_request))
 
+    # Shared ChromaDB object memory (learn where the robot finds things; recall on voice).
+    args.memory_store = None if args.no_memory else load_memory_store()
+
     print("MongoDB connection: OK")
     print(f"Database: {mongo.database_name}")
     print(f"Watching: {', '.join(name for name, _ in handlers) or '(nothing)'}")
@@ -502,15 +613,19 @@ def main() -> int:
     if not args.no_voice:
         mic = "auto" if args.mic_device is None else f"device {args.mic_device}"
         print(f"  conversation_events -> press-to-talk [mic {mic}, {args.voice_duration}s] -> STT + NLP -> MongoDB")
+    if args.memory_store is not None:
+        print(f"  robot_status (target_found) -> ChromaDB object memory [{', '.join(sorted(MEMORY_OBJECTS))}]; voice recalls it")
 
     seen: set[str] = set()
     # Only react to requests created after the bridge starts unless --backfill.
     start_ms = 0 if args.backfill else current_epoch_ms()
     since: dict[str, int] = {name: start_ms for name, _ in handlers}
+    learned: dict[str, str] = {}
 
     if args.once:
         for name, handler in handlers:
             since[name] = process_collection(mongo, name, since[name], seen, handler, args)
+        learn_object_locations(mongo, args.memory_store, learned)
         return 0
 
     print(f"Polling every {args.poll_seconds:.1f}s. Press Ctrl+C to stop.")
@@ -518,6 +633,7 @@ def main() -> int:
         while True:
             for name, handler in handlers:
                 since[name] = process_collection(mongo, name, since[name], seen, handler, args)
+            learn_object_locations(mongo, args.memory_store, learned)
             time.sleep(args.poll_seconds)
     except KeyboardInterrupt:
         print("\nDashboard action bridge stopped.")

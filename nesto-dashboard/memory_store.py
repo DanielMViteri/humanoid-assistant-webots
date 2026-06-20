@@ -29,6 +29,25 @@ CHROMA_DIR = Path(__file__).parent / "chroma_memory"
 COLLECTION_NAME = "elderly_assistant_memory"
 
 
+def _dummy_embedding(text, dim: int = 64):
+    """Deterministic local embedding so ChromaDB never needs to download a model.
+
+    ChromaDB's default ONNX embedding model is fetched on first write; that
+    download fails offline, which silently dropped EVERY memory write (the
+    collection stayed empty). Object/profile memory is retrieved by exact id, so
+    embedding quality is irrelevant here -- this just lets writes persist.
+    """
+    import hashlib
+
+    out: list[float] = []
+    n = 0
+    while len(out) < dim:
+        digest = hashlib.sha256(f"{text}#{n}".encode("utf-8")).digest()
+        out.extend(b / 255.0 for b in digest)
+        n += 1
+    return out[:dim]
+
+
 def _get_collection():
     """
     Purpose:
@@ -97,6 +116,7 @@ def save_memory(text, metadata=None):
             ids=[memory_id],
             documents=[text],
             metadatas=[metadata],
+            embeddings=[_dummy_embedding(text)],
         )
         return True
     except Exception:
@@ -122,6 +142,7 @@ def upsert_memory(memory_id, text, metadata=None):
             ids=[memory_id],
             documents=[text],
             metadatas=[metadata],
+            embeddings=[_dummy_embedding(text)],
         )
         return True
     except Exception:
@@ -301,7 +322,7 @@ def search_memories(query, limit=3):
         return []
 
     try:
-        results = collection.query(query_texts=[query], n_results=limit)
+        results = collection.query(query_embeddings=[_dummy_embedding(query)], n_results=limit)
         documents = results.get("documents", [[]])[0]
         metadatas = results.get("metadatas", [[]])[0]
     except Exception:

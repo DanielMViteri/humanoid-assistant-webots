@@ -389,20 +389,38 @@ def _render_call_interaction():
         st.info("Call request cancelled.")
 
 
-def _last_search_location(object_key=None):
-    if object_key:
-        try:
-            import memory_store
+def _remembered_object_location(object_key=None):
+    """Room ChromaDB remembers this object was last found in, or None.
 
-            context = _active_elderly_context()
-            memory = memory_store.read_object_memory(context.get("patient_id") or "elderly_user_01", object_key)
+    The bridge writes object memory under the robot's world-scoped id
+    (elderly_user_01), so try both that and the active patient id.
+    """
+    if not object_key:
+        return None
+    try:
+        import memory_store
+
+        context = _active_elderly_context()
+        for uid in (context.get("patient_id"), "elderly_user_01"):
+            if not uid:
+                continue
+            memory = memory_store.read_object_memory(uid, object_key)
+            if not isinstance(memory, dict) or memory.get("status") != "found":
+                continue
             payload = memory.get("memory") if isinstance(memory, dict) else {}
             metadata = payload.get("metadata") if isinstance(payload, dict) else {}
-            location = metadata.get("location") if isinstance(metadata, dict) else ""
+            location = metadata.get("location") if isinstance(metadata, dict) else None
             if location:
                 return str(location)
-        except Exception:
-            pass
+    except Exception:
+        return None
+    return None
+
+
+def _last_search_location(object_key=None):
+    remembered = _remembered_object_location(object_key)
+    if remembered:
+        return remembered
     try:
         status = robot_status(use_live=True)
         return str(status.get("room") or "Living Room")
@@ -548,7 +566,9 @@ def _latest_voice_exchange(since_ms: int | None = None) -> dict | None:
         return None
     result: dict = {}
     if user_doc:
-        result["transcript"] = (user_doc.get("payload") or {}).get("text")
+        raw = (user_doc.get("payload") or {}).get("text") or ""
+        # Strip the internal "[recall] ..." note the bridge appends for the NLP.
+        result["transcript"] = str(raw).split("[recall]")[0].strip()
     if reply_doc:
         result["reply"] = (reply_doc.get("payload") or {}).get("text")
     return result or None
@@ -1016,7 +1036,13 @@ def _elderly_selected_action_panel_html(action, route_base, robot_name, medicine
         started_key = f"elder_search_started_{action}"
         location = _last_search_location(object_key)
         started = st.session_state.get(started_key)
-        result = f"Your {display_object} may be in the {location}." if started else "Last known location unavailable; Nesto can start a room search."
+        remembered = _remembered_object_location(object_key)
+        if remembered:
+            result = f"\U0001F9E0 Nesto remembers your {display_object} was last in the {remembered}."
+        elif started:
+            result = f"Your {display_object} may be in the {location}."
+        else:
+            result = "Last known location unavailable; Nesto can start a room search."
         steps = "".join(
             f"<li>{escape(step)}</li>"
             for step in [
