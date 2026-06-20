@@ -463,17 +463,22 @@ def _render_object_search_interaction(object_key, scenario_type, title):
         st.rerun()
 
 
-def _latest_face_reading(max_age_seconds: int = 180) -> dict | None:
-    """Most recent DeepFace emotion the dashboard bridge wrote for a mood check, if recent."""
+def _latest_face_reading(since_ms: int | None = None, max_age_seconds: int = 1800) -> dict | None:
+    """Most recent DeepFace emotion the dashboard bridge wrote for a mood check.
+
+    When ``since_ms`` is given (the instant the elder tapped a mood) only a
+    detection at/after that instant counts, so the panel reflects THIS check-in
+    and then keeps showing it instead of vanishing on a short timer.
+    """
     import time as _time
 
+    query: dict = {"event_type": "mood_detected", "payload.trigger": "nesto_dashboard_mood_check"}
+    if since_ms:
+        query["timestamp"] = {"$gte": int(since_ms) - 3000}  # small slack for clock skew
     try:
         import db_queries
 
-        doc = db_queries._db["mood_events"].find_one(
-            {"event_type": "mood_detected", "payload.trigger": "nesto_dashboard_mood_check"},
-            sort=[("timestamp", -1)],
-        )
+        doc = db_queries._db["mood_events"].find_one(query, sort=[("timestamp", -1)])
     except Exception:
         return None
     if not doc:
@@ -486,7 +491,59 @@ def _latest_face_reading(max_age_seconds: int = 180) -> dict | None:
         "mood": payload.get("mood"),
         "confidence": float(payload.get("confidence") or 0.0),
         "capture_mode": payload.get("capture_mode", "snapshot"),
+        "timestamp": timestamp,
     }
+
+
+@st.fragment(run_every=2.5)
+def _render_live_mood_reading():
+    """Auto-refreshing banner with the camera emotion for the current mood check-in.
+
+    Rendered on the elderly home while the mood panel is open. Only this fragment
+    re-runs (every couple seconds) — not the whole HTML page — so it can poll
+    MongoDB for the DeepFace result the bridge writes a few seconds after the tap,
+    gated to the moment of THIS tap, and keep showing it once it arrives.
+    """
+    import time as _time
+
+    if st.session_state.get("elderly_action") != "mood":
+        return
+    since = st.session_state.get("elder_mood_check_ms")
+    reading = st.session_state.get("elder_mood_reading")
+    if reading is None and since:
+        found = _latest_face_reading(since_ms=since)
+        if found and found.get("mood"):
+            reading = found
+            st.session_state["elder_mood_reading"] = found
+
+    if reading and reading.get("mood"):
+        st.success(
+            f"\U0001F9E0 {_robot_name()} looked at you and sensed "
+            f"**{str(reading['mood']).title()}** "
+            f"({reading['confidence'] * 100:.0f}% confident, {reading['capture_mode']} reading)."
+        )
+    elif since and (int(_time.time() * 1000) - int(since)) < 120_000:
+        st.info(f"\U0001F4F7 {_robot_name()} is reading your expression with its camera… this updates on its own.")
+
+
+@st.fragment(run_every=3.0)
+def _render_nesto_camera_reading():
+    """Live view of Nesto's last camera emotion reading.
+
+    Decorated as a Streamlit fragment with ``run_every`` so this block alone
+    re-polls MongoDB every few seconds and updates on its own — no full-page
+    reload and no manual refresh button needed.
+    """
+    selected = st.session_state.get("elder_mood_selected")
+    since_ms = st.session_state.get("elder_mood_check_ms")
+    reading = _latest_face_reading(since_ms=since_ms)
+    if reading and reading.get("mood"):
+        st.info(
+            f"\U0001F9E0 Nesto looked at you and sensed **{str(reading['mood']).title()}** "
+            f"({reading['confidence'] * 100:.0f}% confident, {reading['capture_mode']})."
+        )
+    elif selected:
+        st.caption("Nesto is reading your expression with its camera… this updates automatically in a few seconds.")
 
 
 def _render_mood_interaction():
@@ -503,7 +560,12 @@ def _render_mood_interaction():
     cols = st.columns(4)
     for index, mood in enumerate(moods):
         if cols[index % 4].button(mood, use_container_width=True, key=f"elder_mood_{index}"):
+            import time as _time
+
             st.session_state["elder_mood_selected"] = mood
+            # Mark the instant of this tap so the camera-reading panel only shows the
+            # detection produced for THIS check-in (the bridge writes it a few seconds later).
+            st.session_state["elder_mood_check_ms"] = int(_time.time() * 1000)
             ok = _write_elderly_event(
                 "mood_event",
                 "mood_check",
@@ -517,17 +579,9 @@ def _render_mood_interaction():
                 st.info("Nesto saved this action locally and will try again.")
             st.rerun()
 
-    # Show what Nesto's camera sensed (written by the dashboard bridge a few seconds after the tap).
-    reading = _latest_face_reading()
-    if reading and reading.get("mood"):
-        st.info(
-            f"\U0001F9E0 Nesto looked at you and sensed **{str(reading['mood']).title()}** "
-            f"({reading['confidence'] * 100:.0f}% confident, {reading['capture_mode']})."
-        )
-    elif selected:
-        st.caption("Nesto is reading your expression with its camera… give it a few seconds, then refresh.")
-    if st.button("Refresh Nesto's reading", key="elder_mood_refresh_reading"):
-        st.rerun()
+    # Live view of what Nesto's camera sensed (the bridge writes it a few seconds after the tap).
+    # This fragment auto-refreshes on its own timer, so no manual refresh button is needed.
+    _render_nesto_camera_reading()
 
 
 def _render_emergency_interaction():
@@ -729,8 +783,14 @@ def _handle_elderly_action_command(command, selected_action, medicine_time):
             },
         )
     elif command == "mood_select":
+        import time as _time
+
         mood = _query_param("elder_mood") or "I prefer not to say"
         st.session_state["elder_mood_selected"] = mood
+        # Stamp this tap so the live camera-reading banner only shows the detection
+        # produced for THIS check-in, and clear any reading from a previous one.
+        st.session_state["elder_mood_check_ms"] = int(_time.time() * 1000)
+        st.session_state["elder_mood_reading"] = None
         _write_elderly_event(
             "mood_event",
             "mood_check",
@@ -1072,6 +1132,9 @@ def elderly_home():
             </a>
             """
         )
+
+    # Live, auto-refreshing camera-emotion banner for the current mood check-in.
+    _render_live_mood_reading()
 
     _render_html(
         f"""
