@@ -33,8 +33,12 @@ from mongo_client import MongoEventClient, PROJECT_ROOT, load_dotenv, mongo_erro
 
 SCENARIO_EVENTS_COLLECTION = "scenario_events"
 MOOD_EVENTS_COLLECTION = "mood_events"
+CONVERSATION_EVENTS_COLLECTION = "conversation_events"
 WEBOTS_COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 DEFAULT_POLL_SECONDS = 3.0
+
+# Dashboard press-to-talk markers that should trigger a real mic recording.
+VOICE_LISTEN_SCENARIOS = {"voice_listen", "press_to_talk", "talk_listen"}
 
 # Aliases the dashboard may use for each actionable robot scenario.
 SCENARIO_ALIASES = {
@@ -320,6 +324,97 @@ def handle_mood_request(mongo: MongoEventClient, document: dict[str, Any], args:
 
 
 # --------------------------------------------------------------------------- #
+# Press-to-talk voice requests -> record + transcribe + NLP -> MongoDB
+# --------------------------------------------------------------------------- #
+def _build_voice_nlp_args(args: argparse.Namespace) -> argparse.Namespace:
+    """Build the Namespace expected by nlp_event_runner.process_user_message.
+
+    insert=True writes the transcript/reply into conversation_events; webots_command=True
+    so a spoken "find my cane" also drives the NAO -- exactly like the typed path.
+    """
+    from nlp_event_runner import DEFAULT_MODEL
+
+    return argparse.Namespace(
+        mock=args.voice_mock,
+        model=DEFAULT_MODEL,
+        insert=True,
+        speak=args.voice_speak,
+        play_audio=False,
+        webots_command=True,
+        output="data/raw/nlp_feature_events.jsonl",
+        no_output=False,
+        pretty=False,
+        scene_image=None,
+        face_image=None,
+        webcam_scene=False,
+        webcam_face=False,
+        webcam_device=args.device,
+        webcam_countdown=args.webcam_countdown,
+        use_live_emotion=False,
+        live_emotion_path=None,
+        live_emotion_max_age=10.0,
+        use_memory=False,
+        memory_top_k=3,
+        memory_collection=None,
+        yolo_model="yolov8n.pt",
+        yolo_confidence=0.25,
+        deepface_detector_backend=args.detector_backend,
+    )
+
+
+def run_voice_capture(mongo: MongoEventClient, args: argparse.Namespace) -> bool:
+    """Record the mic, transcribe (ElevenLabs), and run NLP (process_user_message).
+
+    process_user_message writes the user_message (transcript) and robot_response
+    (reply) into conversation_events and, for actionable intents, the Webots
+    command file -- so the spoken request both shows on the dashboard and drives
+    the robot.
+    """
+    try:
+        from voice_assistant_runner import record_wav
+        from elevenlabs_voice import transcribe_speech
+        from nlp_event_runner import process_user_message
+    except Exception as exc:
+        print(f"[voice] voice modules unavailable: {exc}")
+        return False
+
+    try:
+        print("[voice] recording... speak now")
+        audio_path, levels = record_wav(args.voice_duration, 16000, device=args.mic_device)
+        print(f"[voice] recorded {audio_path} (rms={levels['rms']:.4f}, peak={levels['peak']:.4f})")
+    except Exception as exc:
+        print(f"[voice] microphone capture FAILED: {exc.__class__.__name__}: {exc}")
+        print("  Hint: list mics with run_voice_with_perception.cmd --list-devices, then pass --mic-device N.")
+        return False
+
+    try:
+        transcript = str(transcribe_speech(audio_path) or "").strip()
+    except Exception as exc:
+        print(f"[voice] transcription FAILED: {exc.__class__.__name__}: {exc}")
+        return False
+    if not transcript:
+        print("[voice] empty transcript; nothing to process.")
+        return False
+    print(f"[voice] transcript: {transcript}")
+
+    try:
+        process_user_message(transcript, _build_voice_nlp_args(args), mongo=mongo)
+    except Exception as exc:
+        print(f"[voice] NLP processing FAILED: {exc.__class__.__name__}: {exc}")
+        return False
+    return True
+
+
+def handle_voice_request(mongo: MongoEventClient, document: dict[str, Any], args: argparse.Namespace) -> bool:
+    scenario_type = str(document.get("scenario_type") or "").strip().lower()
+    payload = document.get("payload") or {}
+    trigger = str(payload.get("trigger") or "").strip().lower()
+    if scenario_type not in VOICE_LISTEN_SCENARIOS and trigger != "press_to_talk":
+        return False  # an ordinary conversation event, not a press-to-talk request
+    return run_voice_capture(mongo, args)
+
+
+# --------------------------------------------------------------------------- #
 # Polling
 # --------------------------------------------------------------------------- #
 def process_collection(
@@ -359,6 +454,11 @@ def main() -> int:
     parser.add_argument("--no-status-writeback", action="store_true", help="Do not write robot_command_sent events back to MongoDB.")
     parser.add_argument("--no-scenarios", action="store_true", help="Disable the scenario_events -> Webots command handler.")
     parser.add_argument("--no-emotion", action="store_true", help="Disable the mood_events -> facial recognition handler.")
+    parser.add_argument("--no-voice", action="store_true", help="Disable the conversation_events -> press-to-talk voice handler.")
+    parser.add_argument("--mic-device", type=int, default=None, help="Microphone input device index (see run_voice_with_perception.cmd --list-devices).")
+    parser.add_argument("--voice-duration", type=int, default=7, help="Seconds to record per press-to-talk request.")
+    parser.add_argument("--voice-mock", action="store_true", help="Use the local mock NLP classifier instead of OpenAI for voice requests.")
+    parser.add_argument("--voice-speak", action="store_true", help="Speak the robot reply with ElevenLabs after a voice request.")
     parser.add_argument("--device", type=int, default=0, help="Webcam device index for emotion recognition.")
     parser.add_argument("--webcam-countdown", type=int, default=3, help="Seconds before the webcam frame is captured.")
     parser.add_argument("--detector-backend", default="opencv", help="DeepFace detector backend.")
@@ -383,6 +483,8 @@ def main() -> int:
         handlers.append((SCENARIO_EVENTS_COLLECTION, handle_scenario_request))
     if not args.no_emotion:
         handlers.append((MOOD_EVENTS_COLLECTION, handle_mood_request))
+    if not args.no_voice:
+        handlers.append((CONVERSATION_EVENTS_COLLECTION, handle_voice_request))
 
     print("MongoDB connection: OK")
     print(f"Database: {mongo.database_name}")
@@ -397,6 +499,9 @@ def main() -> int:
         else:
             mode = f"webcam device {args.device} snapshot + DeepFace"
         print(f"  mood_events -> facial emotion recognition [{mode}] -> MongoDB")
+    if not args.no_voice:
+        mic = "auto" if args.mic_device is None else f"device {args.mic_device}"
+        print(f"  conversation_events -> press-to-talk [mic {mic}, {args.voice_duration}s] -> STT + NLP -> MongoDB")
 
     seen: set[str] = set()
     # Only react to requests created after the bridge starts unless --backfill.

@@ -526,6 +526,67 @@ def _render_live_mood_reading():
         st.info(f"\U0001F4F7 {_robot_name()} is reading your expression with its camera… this updates on its own.")
 
 
+def _latest_voice_exchange(since_ms: int | None = None) -> dict | None:
+    """Latest spoken transcript + Nesto reply the voice bridge wrote for this press.
+
+    Reads conversation_events (user_message = transcript, robot_response = reply),
+    gated to the press moment so it reflects THIS request.
+    """
+    try:
+        import db_queries
+
+        coll = db_queries._db["conversation_events"]
+        user_q: dict = {"event_type": "user_message"}
+        reply_q: dict = {"event_type": "robot_response"}
+        if since_ms:
+            bound = {"$gte": int(since_ms) - 3000}
+            user_q["timestamp"] = bound
+            reply_q["timestamp"] = bound
+        user_doc = coll.find_one(user_q, sort=[("timestamp", -1)])
+        reply_doc = coll.find_one(reply_q, sort=[("timestamp", -1)])
+    except Exception:
+        return None
+    result: dict = {}
+    if user_doc:
+        result["transcript"] = (user_doc.get("payload") or {}).get("text")
+    if reply_doc:
+        result["reply"] = (reply_doc.get("payload") or {}).get("text")
+    return result or None
+
+
+@st.fragment(run_every=2.5)
+def _render_live_voice_reply():
+    """Auto-refreshing banner with the spoken transcript + Nesto's reply.
+
+    Shown on the Talk-to-Nesto screen after Press to talk. Only this fragment
+    re-runs (every couple seconds), polling conversation_events for the result the
+    voice bridge writes (record -> STT -> NLP), gated to this press, and keeping it
+    once it arrives.
+    """
+    import time as _time
+
+    if st.session_state.get("elderly_action") != "chat":
+        return
+    since = st.session_state.get("talk_press_ms")
+    if not since:
+        return
+    exchange = st.session_state.get("talk_voice_exchange")
+    if not (exchange and exchange.get("transcript")):
+        found = _latest_voice_exchange(since_ms=since)
+        if found and found.get("transcript"):
+            exchange = found
+            st.session_state["talk_voice_exchange"] = found
+
+    transcript = exchange.get("transcript") if exchange else None
+    reply = exchange.get("reply") if exchange else None
+    if transcript:
+        st.success(f"\U0001F3A4 You said: **{transcript}**")
+    elif (int(_time.time() * 1000) - int(since)) < 120_000:
+        st.info(f"\U0001F3A4 {_robot_name()} is listening… speak now — your words will appear here on their own.")
+    if reply:
+        st.info(f"\U0001F4AC {_robot_name()}: {reply}")
+
+
 @st.fragment(run_every=3.0)
 def _render_nesto_camera_reading():
     """Live view of Nesto's last camera emotion reading.
@@ -814,10 +875,23 @@ def _handle_elderly_action_command(command, selected_action, medicine_time):
     elif command == "emergency_cancel":
         st.session_state["elderly_action"] = None
     elif command == "talk_press":
-        st.session_state["talk_to_nesto_response"] = "Nesto is listening. You can also type your request below."
+        import time as _time
+
+        st.session_state["talk_to_nesto_response"] = "Nesto is listening. Speak now — your words will appear here."
         st.session_state["talk_to_nesto_command"] = "Listening..."
         st.session_state["talk_to_nesto_listening"] = True
         st.session_state["talk_to_nesto_scenario"] = "talk_to_nesto"
+        # Stamp this press and ask the bridge to record + transcribe via the mic.
+        st.session_state["talk_press_ms"] = int(_time.time() * 1000)
+        st.session_state["talk_voice_exchange"] = None
+        _write_elderly_event(
+            "conversation_event",
+            "voice_listen",
+            "listening",
+            f"{_care_name()} pressed to talk with {_robot_name()}.",
+            payload={"trigger": "press_to_talk"},
+            notify_guardian=False,
+        )
     elif command == "talk_send":
         text = _query_param("talk_text") or "Talk to Nesto"
         _handle_talk_to_nesto_command(text, typed=True)
@@ -1135,6 +1209,8 @@ def elderly_home():
 
     # Live, auto-refreshing camera-emotion banner for the current mood check-in.
     _render_live_mood_reading()
+    # Live, auto-refreshing transcript + reply for the current press-to-talk request.
+    _render_live_voice_reply()
 
     _render_html(
         f"""
