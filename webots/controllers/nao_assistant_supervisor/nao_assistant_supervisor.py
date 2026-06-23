@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v9-godmode-heading"
+CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v10-medicine-direct"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -562,11 +562,14 @@ def route_for_command(
         ]
 
     if action == "check_medicine" and target == "medicine_box":
-        return [
-            [-1.45, -3.05, robot_height],
-            [-1.15, -2.78, robot_height],
-            [-1.08, -2.70, target_z],
-        ]
+        # The medicine box sits on the table right next to the robot's start
+        # (~0.95 m away, already inside MEDICINE_SIGHT_DISTANCE_METERS). Approach
+        # it DIRECTLY and let the on-sight completion stop the robot before it
+        # reaches the table. The previous fixed route looped SOUTH (away from the
+        # box) first, which read as the robot "struggling" before it glided in.
+        if target_position is not None:
+            return [[target_position[0], target_position[1], robot_height]]
+        return [[-0.82, -2.42, robot_height]]
 
     if action == "support_user":
         return [
