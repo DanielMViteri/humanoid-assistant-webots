@@ -32,13 +32,16 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-12-nao-supervisor-v6"
+CONTROLLER_VERSION = "2026-06-20-nao-supervisor-v8-medicine-on-sight"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
 NAVIGATION_HEIGHT = 0.334
 TARGET_REACHED_DISTANCE_METERS = 0.55
 WAYPOINT_REACHED_DISTANCE_METERS = 0.50
+# The medicine box sits ON a table, so the NAO can't get as close as a floor object
+# without colliding/circling. Count it as "found on the table" when seen within sight.
+MEDICINE_SIGHT_DISTANCE_METERS = 1.15
 STALL_DETECTION_DISTANCE_METERS = 0.02
 STALL_DETECTION_STEPS = 20
 TURN_ALIGNMENT_RADIANS = 0.30
@@ -958,7 +961,8 @@ def main() -> None:
                 and navigation_goal_distance_now is not None
                 and navigation_goal_distance_now <= WAYPOINT_REACHED_DISTANCE_METERS
             )
-            target_reached_now = target_distance_now is not None and target_distance_now <= TARGET_REACHED_DISTANCE_METERS
+            reach_now = MEDICINE_SIGHT_DISTANCE_METERS if action == "check_medicine" else TARGET_REACHED_DISTANCE_METERS
+            target_reached_now = target_distance_now is not None and target_distance_now <= reach_now
             command_ready_now = target_reached_now or support_reached_now or command_completed_now
         else:
             command_ready_now = command_completed_now
@@ -1018,7 +1022,8 @@ def main() -> None:
         navigation_goal_distance = planar_distance(position, navigation_goal) if navigation_goal is not None else None
         obstacle_distance = perception_min_clearance(perception) if use_camera_nav else estimate_obstacle_distance(robot, position)
         command_was_completed = active_command_id in completed_targets if active_command_id else False
-        target_reached = target_distance is not None and target_distance <= TARGET_REACHED_DISTANCE_METERS
+        reach_distance = MEDICINE_SIGHT_DISTANCE_METERS if action == "check_medicine" else TARGET_REACHED_DISTANCE_METERS
+        target_reached = target_distance is not None and target_distance <= reach_distance
         support_reached = (
             action == "support_user"
             and navigation_goal_distance is not None
