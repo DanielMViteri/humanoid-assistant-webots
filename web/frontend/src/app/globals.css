@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   NESTO Care design tokens — calm, professional, elderly-friendly.
+   Tailwind v4 turns each --color-NAME token into background, text, border and
+   ring utilities (bg-NAME, text-NAME, etc.).
+---------------------------------------------------------------------------- */
+@theme {
+  --color-bg: #e9efe9;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f4f8f3;
+  --color-ink: #16302a;
+  --color-ink-soft: #41534d;
+  --color-muted: #6b7c76;
+  --color-line: #e0e8e0;
+
+  --color-brand: #1f7d57;
+  --color-brand-strong: #15603f;
+  --color-brand-soft: #e6f3ec;
+
+  --color-danger: #c0392b;
+  --color-danger-soft: #fbeae8;
+  --color-warn: #b9770e;
+  --color-info: #1f6f8b;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(1200px 600px at 80% -10%, #f1f7f0 0%, transparent 60%),
+    var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Component classes live in the components layer (lower priority than utilities)
+   so utility classes in markup can still override them. Plain CSS (no @apply). */
+@layer components {
+  .card {
+    border-radius: 1.5rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    box-shadow: 0 18px 50px -30px rgba(20, 48, 42, 0.45);
+  }
+
+  .btn-primary,
+  .btn-secondary,
+  .btn-danger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 1rem;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease, filter 0.15s ease;
+    cursor: pointer;
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled,
+  .btn-danger:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-danger:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(31, 125, 87, 0.25);
+  }
+
+  .btn-primary {
+    background: var(--color-brand);
+    color: #ffffff;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--color-brand-strong);
+  }
+
+  .btn-secondary {
+    background: var(--color-surface);
+    color: var(--color-ink);
+    border: 1px solid var(--color-line);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface-soft);
+  }
+
+  .btn-danger {
+    background: var(--color-danger);
+    color: #ffffff;
+  }
+  .btn-danger:hover:not(:disabled) {
+    filter: brightness(0.95);
+  }
+}
