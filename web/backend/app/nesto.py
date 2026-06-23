@@ -15,8 +15,15 @@ from pathlib import Path
 SWARM_ROOT = Path(__file__).resolve().parents[3]
 DASHBOARD_DIR = SWARM_ROOT / "nesto-dashboard"
 
+# Append (do NOT insert at the front): nesto-dashboard/ contains a top-level
+# ``app.py`` (the Streamlit entry) that would otherwise shadow this backend's own
+# ``app`` package. Under ``uvicorn --reload`` the parent reloader runs this shim,
+# and the spawned worker inherits sys.path; if nesto-dashboard/ were first, the
+# worker would resolve the ``app.main`` target to nesto-dashboard/app.py and crash
+# importing streamlit. Appending keeps the backend's ``app`` package first while
+# still making the pure helper modules importable.
 if str(DASHBOARD_DIR) not in sys.path:
-    sys.path.insert(0, str(DASHBOARD_DIR))
+    sys.path.append(str(DASHBOARD_DIR))
 
 # Importing db_queries connects to MongoDB Atlas (its own load_dotenv walks up to
 # swarmsense/.env). memory_store/chromadb stay lazy until first used.
