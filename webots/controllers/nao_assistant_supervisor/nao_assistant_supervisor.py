@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v11-medicine-pickup"
+CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v12-natural-walk"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -884,55 +884,30 @@ def main() -> None:
                 last_seen_target_position=remembered_target_position,
             )
             if navigation_goal is not None:
-                # --- God-mode heading control (v9) ----------------------------
-                # Steer the base heading toward the goal every tick via set_yaw,
-                # instead of relying on incremental turn .motion physics. The old
-                # approach oscillated and never converged when the goal sat ~180deg
-                # behind the robot (yaw_error flipped sign across +/-pi). Driving
-                # the heading directly makes navigation start-orientation agnostic:
-                # the robot pivots to face the goal, then walks straight to it.
-                goal_dx = navigation_goal[0] - position[0]
-                goal_dy = navigation_goal[1] - position[1]
-                if goal_dx or goal_dy:
-                    desired_yaw = math.atan2(goal_dx, -goal_dy)
-                    current_yaw = get_yaw(nao_node)
-                    yaw_error = normalize_angle(desired_yaw - current_yaw)
-                    max_step = MAX_YAW_RATE_RADIANS_PER_SEC * (timestep / 1000.0)
-                    set_yaw(
-                        nao_node,
-                        normalize_angle(current_yaw + max(-max_step, min(max_step, yaw_error))),
-                    )
-                    heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
-                    pivot_motion = "turn_left" if yaw_error > 0 else "turn_right"
-                else:
-                    heading_aligned = True
-                    pivot_motion = "idle"
-
-                if last_search_position is not None and planar_distance(position, last_search_position) < STALL_DETECTION_DISTANCE_METERS:
-                    stalled_search_steps += 1
-                else:
-                    stalled_search_steps = 0
-                last_search_position = list(position)
-
-                if not heading_aligned:
-                    # Pivot in place to face the goal. set_yaw above does the real
-                    # rotation; the motion is just the matching leg animation, and
-                    # we re-evaluate every tick (no hold) so steering stays smooth.
-                    if committed_motion != pivot_motion:
-                        committed_motion = pivot_motion
-                        motion_sequence += 1
+                # --- Heading control (v12): snap-then-walk --------------------
+                # Aim the heading at the goal with a SINGLE set_yaw at the start of
+                # each walk chunk, then leave rotation alone for the whole chunk so
+                # the real Forwards50 gait drives natural stepping. The v9 approach
+                # forced set_yaw EVERY tick, which fought the walk physics -- the
+                # robot slid/glided instead of stepping and sometimes failed to
+                # translate at all. Re-aiming once per chunk keeps the heading
+                # deterministic (no oscillation) while the walk itself looks natural.
+                if robot.getTime() < motion_hold_until and committed_motion == "walk_forward":
                     locomotion_motion, locomotion_loop = committed_motion, False
-                    motion_hold_until = 0.0
                 else:
-                    # Facing the goal: walk forward in chunks (the gait advances the
-                    # robot; set_yaw keeps it pointed at the goal each tick).
-                    if robot.getTime() < motion_hold_until and committed_motion == "walk_forward":
-                        locomotion_motion, locomotion_loop = committed_motion, False
-                    else:
-                        committed_motion = "walk_forward"
-                        locomotion_motion, locomotion_loop = committed_motion, False
-                        motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS["walk_forward"]
-                        motion_sequence += 1
+                    goal_dx = navigation_goal[0] - position[0]
+                    goal_dy = navigation_goal[1] - position[1]
+                    if goal_dx or goal_dy:
+                        desired_yaw = math.atan2(goal_dx, -goal_dy)
+                        # Only re-aim when meaningfully off course, so a straight
+                        # walk isn't interrupted by tiny heading snaps every chunk.
+                        if abs(normalize_angle(desired_yaw - get_yaw(nao_node))) > TURN_ALIGNMENT_RADIANS:
+                            set_yaw(nao_node, desired_yaw)
+                    committed_motion = "walk_forward"
+                    locomotion_motion, locomotion_loop = committed_motion, False
+                    motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS["walk_forward"]
+                    motion_sequence += 1
+                last_search_position = list(position)
             elif action == "search_object":
                 if robot.getTime() < motion_hold_until and committed_motion != "idle":
                     locomotion_motion, locomotion_loop = committed_motion, False
