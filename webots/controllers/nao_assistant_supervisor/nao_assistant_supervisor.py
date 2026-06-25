@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v14-real-walk-attempt1"
+CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v15-real-walk-yawfix"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -229,8 +229,26 @@ def get_yaw(node) -> float:
     field = node.getField("rotation")
     if field is None:
         return 0.0
-    rotation = list(field.getSFRotation())
-    return float(rotation[3])
+    values = list(field.getSFRotation())
+    if len(values) < 4:
+        return 0.0
+    ax, ay, az, angle = values[0], values[1], values[2], values[3]
+    # Robust yaw extraction. The old code returned `angle` directly, but Webots
+    # stores a rotation about -z as a POSITIVE angle with the axis flipped to
+    # [0,0,-1], so `angle` flips sign with orientation and the robot circled when
+    # set_yaw wasn't continuously re-normalising it. Instead, rotate the NAO's
+    # local forward axis (+y) into the world via Rodrigues' formula and read the
+    # heading off that -- this is sign-correct for any stored axis.
+    norm = math.sqrt(ax * ax + ay * ay + az * az) or 1.0
+    ax, ay, az = ax / norm, ay / norm, az / norm
+    c = math.cos(angle)
+    s = math.sin(angle)
+    one_c = 1.0 - c
+    # World forward = R * (0, 1, 0)  (second column of the rotation matrix).
+    forward_x = ax * ay * one_c - az * s
+    forward_y = c + ay * ay * one_c
+    # Match the heading_vector(yaw) = (sin yaw, -cos yaw) convention used elsewhere.
+    return math.atan2(forward_x, -forward_y)
 
 
 def planar_distance(first: list[float], second: list[float]) -> float:
