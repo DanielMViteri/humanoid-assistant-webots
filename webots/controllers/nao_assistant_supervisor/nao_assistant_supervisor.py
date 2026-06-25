@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v15-real-walk-yawfix"
+CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v13-stable-glide"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -47,8 +47,7 @@ WAYPOINT_REACHED_DISTANCE_METERS = 0.50
 MEDICINE_REACH_DISTANCE_METERS = 0.72
 STALL_DETECTION_DISTANCE_METERS = 0.02
 STALL_DETECTION_STEPS = 20
-TURN_ALIGNMENT_RADIANS = 0.42  # > half the 40deg (0.70 rad) turn step, so a single
-                               # turn can't overshoot into a reverse turn (oscillation)
+TURN_ALIGNMENT_RADIANS = 0.30
 TURN_HARD_ALIGNMENT_RADIANS = 0.65
 # God-mode heading control: how fast the supervisor may steer the robot's base
 # heading toward the goal (rad/s). At ~1.6 rad/s a full 180deg turn takes ~2s.
@@ -229,26 +228,8 @@ def get_yaw(node) -> float:
     field = node.getField("rotation")
     if field is None:
         return 0.0
-    values = list(field.getSFRotation())
-    if len(values) < 4:
-        return 0.0
-    ax, ay, az, angle = values[0], values[1], values[2], values[3]
-    # Robust yaw extraction. The old code returned `angle` directly, but Webots
-    # stores a rotation about -z as a POSITIVE angle with the axis flipped to
-    # [0,0,-1], so `angle` flips sign with orientation and the robot circled when
-    # set_yaw wasn't continuously re-normalising it. Instead, rotate the NAO's
-    # local forward axis (+y) into the world via Rodrigues' formula and read the
-    # heading off that -- this is sign-correct for any stored axis.
-    norm = math.sqrt(ax * ax + ay * ay + az * az) or 1.0
-    ax, ay, az = ax / norm, ay / norm, az / norm
-    c = math.cos(angle)
-    s = math.sin(angle)
-    one_c = 1.0 - c
-    # World forward = R * (0, 1, 0)  (second column of the rotation matrix).
-    forward_x = ax * ay * one_c - az * s
-    forward_y = c + ay * ay * one_c
-    # Match the heading_vector(yaw) = (sin yaw, -cos yaw) convention used elsewhere.
-    return math.atan2(forward_x, -forward_y)
+    rotation = list(field.getSFRotation())
+    return float(rotation[3])
 
 
 def planar_distance(first: list[float], second: list[float]) -> float:
@@ -903,20 +884,30 @@ def main() -> None:
                 last_seen_target_position=remembered_target_position,
             )
             if navigation_goal is not None:
-                # --- Real-physics navigation (v14): turn + walk, NO set_yaw ----
-                # Drive heading and translation with the official TurnLeft40 /
-                # TurnRight40 / Forwards50 gaits and let physics keep the robot
-                # upright, so it actually STEPS. set_yaw teleported the base
-                # orientation and toppled the walk, so it is not used here at all.
-                # Each motion is held for its full duration (no mid-stride
-                # interruption -> stays balanced), and we re-decide once it ends.
-                # A wide alignment tolerance (> half a 40deg turn step) stops the
-                # heading from ping-ponging; we only walk once roughly facing the goal.
+                # --- God-mode heading control (stable) ------------------------
+                # Steer the base heading toward the goal EVERY tick via set_yaw.
+                # set_yaw forces rotation = [0,0,1,yaw] (roll/pitch = 0), which both
+                # aims the robot and holds it perfectly upright -- essential here,
+                # because the real Forwards50 walk gait is unstable in this world and
+                # the NAO topples without the per-tick upright forcing (v12 tried
+                # free physics and it fell). The cost is a "glide" look rather than
+                # true stepping; that is the deliberate presentation_mode behaviour.
                 goal_dx = navigation_goal[0] - position[0]
                 goal_dy = navigation_goal[1] - position[1]
-                desired_yaw = math.atan2(goal_dx, -goal_dy)
-                yaw_error = normalize_angle(desired_yaw - get_yaw(nao_node))
-                heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
+                if goal_dx or goal_dy:
+                    desired_yaw = math.atan2(goal_dx, -goal_dy)
+                    current_yaw = get_yaw(nao_node)
+                    yaw_error = normalize_angle(desired_yaw - current_yaw)
+                    max_step = MAX_YAW_RATE_RADIANS_PER_SEC * (timestep / 1000.0)
+                    set_yaw(
+                        nao_node,
+                        normalize_angle(current_yaw + max(-max_step, min(max_step, yaw_error))),
+                    )
+                    heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
+                    pivot_motion = "turn_left" if yaw_error > 0 else "turn_right"
+                else:
+                    heading_aligned = True
+                    pivot_motion = "idle"
 
                 if last_search_position is not None and planar_distance(position, last_search_position) < STALL_DETECTION_DISTANCE_METERS:
                     stalled_search_steps += 1
@@ -924,17 +915,20 @@ def main() -> None:
                     stalled_search_steps = 0
                 last_search_position = list(position)
 
-                if robot.getTime() < motion_hold_until and committed_motion != "idle":
-                    # Let the current gait finish so the robot stays balanced.
+                if not heading_aligned:
+                    if committed_motion != pivot_motion:
+                        committed_motion = pivot_motion
+                        motion_sequence += 1
                     locomotion_motion, locomotion_loop = committed_motion, False
+                    motion_hold_until = 0.0
                 else:
-                    if heading_aligned:
-                        committed_motion = "walk_forward"
+                    if robot.getTime() < motion_hold_until and committed_motion == "walk_forward":
+                        locomotion_motion, locomotion_loop = committed_motion, False
                     else:
-                        committed_motion = "turn_left" if yaw_error > 0 else "turn_right"
-                    locomotion_motion, locomotion_loop = committed_motion, False
-                    motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS[committed_motion]
-                    motion_sequence += 1
+                        committed_motion = "walk_forward"
+                        locomotion_motion, locomotion_loop = committed_motion, False
+                        motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS["walk_forward"]
+                        motion_sequence += 1
             elif action == "search_object":
                 if robot.getTime() < motion_hold_until and committed_motion != "idle":
                     locomotion_motion, locomotion_loop = committed_motion, False
