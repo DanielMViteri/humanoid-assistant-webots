@@ -107,6 +107,10 @@ web venv (`.venv-web`), the perception venv (`.venv-perception311`), the main
 venv (`.venv`), and Webots installed.
 
 Open the world `webots/worlds/humanoid_house_demo.wbt` in Webots and press Play.
+**Quickest web start (one command):** `tools\run_web.cmd` launches BOTH the
+API (:8000) and the UI (:3000), each in its own window. Use this for the web
+app; run the bridge / Webots / telemetry streamer separately as below.
+
 Then open these terminals (each is one long-running process):
 
 ```bat
@@ -129,6 +133,27 @@ Open the apps:
 - **Patient portal:** http://localhost:3000
 - **Admin KPI dashboard:** http://localhost:3000/admin  (sign in as an `admin_provider`)
 - **API health:** http://127.0.0.1:8000/api/health
+
+### Demo logins
+
+Sign in at `/login`. The admin KPI dashboard requires the `admin_provider`
+account.
+
+| Role | Email | Password | Lands on |
+|---|---|---|---|
+| Admin / care team | `admintest@gmail.com` | `test1234` | `/admin` (KPI dashboard) |
+| Patient (elderly user) | `maria@example.com` | `NestoCare2026!` | `/patient` |
+| Guardian / caregiver | `anna@example.com` | `NestoCare2026!` | guardian view |
+| Guardian / caregiver | `daniel@example.com` | `NestoCare2026!` | guardian view |
+
+Seed password is `NestoCare2026!` unless overridden via the `NESTO_SEED_PASSWORD`
+env var (the admin account is pinned to `test1234`). Any accounts you register
+yourself also work.
+
+> **Multiple pages at once:** the auth token is stored per-browser in
+> localStorage, so logging in as a second role in the same browser replaces the
+> first session. To show patient + guardian + admin simultaneously, use separate
+> browsers / incognito windows (or the phone via ngrok for one of them).
 
 Optional, for the voice + perception experience:
 

@@ -1,5 +1,5 @@
 // Typed fetch wrapper for the NESTO Care API. Token is kept in localStorage.
-export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "http://127.0.0.1:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
 const TOKEN_KEY = "nesto_token";
 
 export function getToken(): string | null {
