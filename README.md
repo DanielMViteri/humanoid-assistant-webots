@@ -1,295 +1,266 @@
-# Humanoid Assistant Webots
+# NESTO Care — Humanoid Elderly-Care Assistant
 
-Humanoid Assistant Webots is a modular robot-assistant prototype for an elderly-care support demo. It combines a Webots house simulation, push-to-talk voice input, OpenAI-based intent classification, ElevenLabs speech, MongoDB Atlas event storage, and Webots sensor telemetry.
+NESTO Care is a modular, end-to-end robotic elderly-care assistant demo. A user
+(or a care provider) speaks to or clicks the assistant; the system understands
+the request, drives a simulated NAO humanoid in Webots to act on it (find a cane,
+fetch medicine, respond to mood), records every step as structured telemetry in
+MongoDB Atlas, and surfaces it all on a live web UI with a real-time **Admin KPI
+dashboard**.
 
-The current MVP scope is a functioning single-humanoid assistant that can receive typed or spoken user requests, classify the intent, respond through speech, send commands into Webots, move toward objects such as a cane, and export robot/system events for dashboard and health-check workflows.
+It is a full vertical slice: **voice + vision + emotion perception → intent →
+robot action → telemetry → live dashboards**, with end-to-end latency measured
+across every hop of the pipeline.
 
-## Project Structure
+---
 
-```text
-humanoid-assistant-webots/
-  ros2_ws/
-    src/
-      robot_assistant/  Active ROS2 package for modular robot abilities
-  prototypes/
-    telemetry_mvp/      Previous telemetry schema simulator and validator
-    webots_telemetry/   Previous Webots telemetry proof of concept
-  data/
-    raw/                Raw generated or captured outputs
-    processed/          Cleaned/scored outputs
-  docs/
-    planning/           Agile scope, backlog, sprint notes
-    architecture/       Node architecture and integration decisions
-  notebooks/            Optional analysis notebooks
-  analytics/            Read-only MongoDB KPI analysis and generated outputs
-  local_kpi_ui_foundation/
-    README.md           Admin KPI dashboard access and validation guide
-```
-
-## Admin KPI Dashboard Access
-
-The Admin KPI dashboard foundation on the `leona-nesto-dashboard-integration` branch lives in:
+## 1. Architecture at a glance
 
 ```text
-local_kpi_ui_foundation/
+                         ┌─────────────────────────────────────────────┐
+                         │                 USER                        │
+                         │  voice (mic) · webcam · web UI clicks        │
+                         └───────────────┬─────────────────────────────┘
+                                         │
+        ┌────────────────────────────────┼────────────────────────────────┐
+        │                                │                                 │
+   VOICE LAYER                     PERCEPTION LAYER                    WEB LAYER
+   ElevenLabs STT/TTS              YOLO (objects)                     Next.js UI (3000)
+        │                          DeepFace (emotion)                 FastAPI API (8000)
+        │                          ChromaDB (object memory)                │
+        └──────────────┬───────────────┴───────────────┬──────────────────┘
+                       │                                │
+                  NLP LAYER (OpenAI)              DASHBOARD COMMAND BRIDGE
+                  intent + response               UI/scenario → robot command
+                       │                          mood check  → DeepFace loop
+                       └───────────────┬──────────────────┘
+                                       │
+                              data/raw/webots_command.json
+                                       │
+                              WEBOTS SIMULATION (NAO supervisor)
+                              navigation, retrieval, handoff
+                                       │
+                              webots_humanoid_events.jsonl
+                                       │
+                              TELEMETRY STREAMER (importer --follow)
+                                       │
+                              MongoDB Atlas  (humanoid_assistant)
+                                       │
+        ┌──────────────────────────────┴───────────────────────────────┐
+        │                                                               │
+   Admin KPI Dashboard (/admin)                          Streamlit provider dashboard
+   live, 30s auto-refresh, 7-stage latency               (teammates' nesto-dashboard)
 ```
 
-Open the static dashboard directly from the repository:
+---
+
+## 2. The stack, layer by layer
+
+| Layer | Tech | Module(s) | What it does |
+|---|---|---|---|
+| **Voice** | ElevenLabs STT + TTS | `elevenlabs_voice.py`, `voice_assistant_runner.py` | Press-to-talk: records mic audio, transcribes speech to text, and speaks the assistant's reply. |
+| **NLP / intent** | OpenAI | `nlp_event_runner.py` | Classifies the user message into an intent (`find_cane`, `find_medicine`, `summon`, `call_caregiver`, mood check-in…) with confidence + risk, and generates the spoken response. Emits schema-valid events. |
+| **Object vision** | YOLO (Ultralytics, `yolov8n`) | `vision_yolo.py` | Detects objects in a scene image / webcam frame and turns them into `object_detected` / `scene_described` events. |
+| **Emotion** | DeepFace (OpenCV backend) | `emotion_deepface.py`, `emotion_stream_monitor.py`, `webcam_capture.py` | Facial emotion recognition from a webcam snapshot → `mood_detected`, `wellbeing_score_updated`, `negative_mood_alert`. Flags negative emotions (sad/fear/angry/disgust). |
+| **Memory** | ChromaDB (vector store) | `memory_chromadb.py` | Remembers where objects were last seen (e.g. `medicine_box → living room`) so the assistant can recall them on request. |
+| **Bridge** | Python poller | `dashboard_command_bridge.py` | The glue: turns UI/scenario events in MongoDB into real robot commands (`webots_command.json`) and turns mood check-ins into a real DeepFace perception run written back to MongoDB. |
+| **Simulation** | Webots R2025a (NAO) | `webots/` + `nao_assistant_supervisor.py`, `nao_motion_bridge.py` | Drives the humanoid: heading-aware navigation, obstacle handling, fall recovery, target retrieval and handoff. Emits robot status + telemetry. |
+| **Telemetry streamer** | Python tailer | `webots_event_importer.py --follow` | Continuously streams new Webots events into MongoDB Atlas (byte-offset tracked, no duplicates) and stamps `mongodb_logged_at` / `dashboard_updated_at` so the dashboards stay live. |
+| **Datastore** | MongoDB Atlas | `mongo_client.py` | Single source of truth (`humanoid_assistant` db). Every insert is schema-validated and timing-stamped. |
+| **Web API** | FastAPI | `web/backend/` | Auth (JWT, roles), patient portal endpoints, and the read-only `GET /api/admin/kpis` admin dashboard route. |
+| **Web UI** | Next.js 16 + React 19 + Tailwind v4 | `web/frontend/` | Patient portal (`/`) and the live Admin KPI dashboard (`/admin`, 30s auto-refresh). |
+| **KPI analysis** | Python (read-only) | `analytics/mongo_kpi_analysis.py` | Computes the seven pipeline latency segments and health KPIs from real timestamp coverage — real values or "Unavailable", never invented. |
+
+---
+
+## 3. End-to-end telemetry & latency
+
+Every dashboard action is traced through seven epoch-millisecond timestamps,
+stored both top-level and mirrored into `payload` (per `docs/telemetry_schema_v1.md`):
 
 ```text
-local_kpi_ui_foundation/admin_kpi_dashboard_ui.html
+ui_triggered_at          UI click / dashboard action
+backend_received_at      FastAPI receipt
+bridge_received_at       dashboard_command_bridge picked up the request
+robot_action_started_at  Webots accepted & started the command
+robot_action_completed_at Webots marked the action complete / handoff ready
+mongodb_logged_at        document inserted into MongoDB Atlas
+dashboard_updated_at     admin/provider telemetry refreshed
 ```
 
-For the most reliable browser behavior, serve that folder locally from the repository root:
+The Admin KPI dashboard derives seven latency segments from these (UI→Backend,
+Backend→Bridge, Bridge→Robot Start, **Robot Action Duration**, **Robot→MongoDB
+(write latency)**, MongoDB→Dashboard, and End-to-End). A segment only shows a
+number when both of its timestamps exist and parse on the same document —
+otherwise it honestly reads "Unavailable".
+
+> **Command → MongoDB write time** is exactly the *Robot → MongoDB* segment
+> (`mongodb_logged_at − robot_action_completed_at`). It populates when the
+> telemetry streamer ingests a robot-completion document, which is why you run
+> `run_telemetry_streamer.cmd` during a live retrieval.
+
+---
+
+## 4. Running the full demo
+
+Prereqs: the `.env` file at the repo root with Atlas + API keys (see §6), the
+web venv (`.venv-web`), the perception venv (`.venv-perception311`), the main
+venv (`.venv`), and Webots installed.
+
+Open the world `webots/worlds/humanoid_house_demo.wbt` in Webots and press Play.
+Then open these terminals (each is one long-running process):
 
 ```bat
-cd local_kpi_ui_foundation
-python -m http.server 8765 --bind 127.0.0.1
+:: 1) Bridge — turns UI clicks / scenarios into robot commands + runs the mood loop
+tools\run_dashboard_bridge.cmd
+
+:: 2) Telemetry streamer — streams Webots events into Atlas live (keeps dashboards fresh)
+::    Add --skip-types to cut idle perception noise:
+tools\run_telemetry_streamer.cmd --skip-types object_detected,object_distance_estimated,scene_described
+
+:: 3) Web API (FastAPI, port 8000)
+tools\run_web_backend.cmd
+
+:: 4) Web UI (Next.js, port 3000)
+tools\run_web_frontend.cmd
 ```
 
-Then open:
+Open the apps:
 
-```text
-http://127.0.0.1:8765/admin_kpi_dashboard_ui.html
-```
+- **Patient portal:** http://localhost:3000
+- **Admin KPI dashboard:** http://localhost:3000/admin  (sign in as an `admin_provider`)
+- **API health:** http://127.0.0.1:8000/api/health
 
-The dashboard reads the sanitized snapshot embedded in the page and, when served over HTTP, also reloads `real_analysis_snapshot.json` from the same folder. To validate the package before use, run:
+Optional, for the voice + perception experience:
 
 ```bat
-python local_kpi_ui_foundation\validate_ui_foundation.py
+:: Push-to-talk voice with webcam scene/face capture, speaks the reply, drives Webots
+tools\run_voice_with_perception.cmd --device 1 --duration 7 --insert --speak --play-audio --webots-command
+
+:: Live facial-emotion monitor (standalone DeepFace loop)
+tools\run_live_emotion_monitor.cmd
 ```
 
-## Saturday Demo
-
-Use [docs/demo/saturday_demo_runbook.md](docs/demo/saturday_demo_runbook.md) for the current demo script, setup checklist, expected Webots behavior, MongoDB verification steps, and fallback plan.
-
-## Initial Setup
+Optional, the teammates' Streamlit provider dashboard:
 
 ```bat
-.\.venv\Scripts\activate.bat
-pip install -r requirements.txt
-pip install -r requirements-mongodb.txt
-pip install -r requirements-openai.txt
-pip install -r requirements-voice.txt
+tools\run_dashboard.cmd
 ```
 
-Perception note:
-- `YOLO`, `DeepFace`, and `ChromaDB` are now wired in as optional features.
-- `requirements-perception.txt` covers `YOLO`, `ChromaDB`, OpenCV, and Pillow for the dedicated perception environment.
-- `YOLO_CONFIG_DIR` can be pointed at `data/processed/ultralytics` to keep Ultralytics settings and cache inside the repo instead of AppData.
-- `DeepFace` may be easier to install from `requirements-deepface.txt` in a Python 3.11 or 3.12 environment than Python 3.14.
-- The core demo still works without the perception stack.
+**Demo flow:** click *Find My Cane* / *Find My Medicine* (or say it) in the UI →
+the bridge writes the Webots command → the NAO navigates and performs the handoff
+→ the streamer pushes the events to Atlas → the Admin KPI dashboard's cards and
+latency segments update within ~30s.
 
-### Rebuild Perception Environment
+---
 
-When the main demo environment is on Python 3.14, rebuild the dedicated perception environment with Python 3.12:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\tools\rebuild_perception_env.ps1
-```
-
-This creates:
-
-- `.venv-perception311`
-
-Activate it from CMD:
+## 5. Individual component commands
 
 ```bat
-call tools\activate_perception_env.cmd
-```
-
-Or skip activation entirely and call the isolated interpreter directly:
-
-```bat
-.\.venv-perception311\Scripts\python.exe tools\perception_import_check.py
-```
-
-Smoke-test the rebuilt environment:
-
-```bat
-python tools\perception_import_check.py
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --mock --text "I feel sad today" --scene-image webots\worlds\.nao_house_demo.jpg --face-image webots\worlds\.nao_house_demo.jpg --use-memory --no-output
-```
-
-## MVP Goal
-
-Build a small but working robot-assistant system where core abilities communicate as separate ROS2 Python nodes.
-
-## Sprint 2 MongoDB Event Pipeline
-
-Daniel's (me) Sprint 2 deliverable is the feature-event data foundation:
-
-```text
-scripted humanoid feature events -> MongoDB Atlas -> Leona's dashboard data source
-```
-
-Kafka and the dashboard are intentionally deferred from Daniel's current implementation step.
-
-Copy `.env.example` to `.env`, then add the team's MongoDB Atlas URI locally:
-
-```bat
-copy .env.example .env
-```
-
-Generate the Sprint 2 feature events without inserting:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\scenario_runner.py --pretty
-```
-
-Generate one named scenario:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\scenario_runner.py --scenario find_cane
-python ros2_ws\src\robot_assistant\robot_assistant\scenario_runner.py --scenario medicine_reminder
-python ros2_ws\src\robot_assistant\robot_assistant\scenario_runner.py --scenario wellbeing_checkin
-```
-
-Insert all demo scenarios into MongoDB Atlas after `.env` is configured:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\scenario_runner.py --scenario all --insert
-```
-
-Run Clara's health check:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\mongo_health_check.py
-```
-
-Backup and reset MongoDB demo collections before a clean demo:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\demo_reset.py
-```
-
-Create a backup without deleting records:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\demo_reset.py --backup-only
-```
-
-Classify typed user input with OpenAI, convert it to approved events, and insert it:
-
-```bat
+:: Classify typed input with OpenAI and insert events
 python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "Can you help me find my cane?" --insert
-```
 
-Run an interactive typed assistant session:
+:: Same, but no API call (mock) — useful offline
+python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "I feel lonely today" --mock --insert
 
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert
-```
-
-Run the assistant with ElevenLabs speech output:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert --speak
-```
-
-Run the assistant with ChromaDB memory enabled:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert --use-memory
-```
-
-Run the assistant with YOLO scene perception from an image:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "Can you help me find my cane?" --scene-image data\raw\webots_scene.png --insert
-```
-
-Run the assistant with DeepFace emotion analysis from a face image:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "I feel a bit sad today." --face-image data\raw\user_face.jpg --insert
-```
-
-Run the assistant with memory, YOLO, and DeepFace together:
-
-```bat
+:: With ChromaDB memory, YOLO scene, and DeepFace emotion together
 python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "Can you help me find my cane?" --use-memory --scene-image data\raw\webots_scene.png --face-image data\raw\user_face.jpg --insert
-```
 
-Open the generated MP3 after each response:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --interactive --insert --speak --play-audio
-```
-
-Run push-to-talk voice input with spoken responses:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\voice_assistant_runner.py --insert --speak --play-audio
-```
-
-Run push-to-talk voice input and send commands to Webots:
-
-```bat
+:: Push-to-talk voice → speech → Webots command
 python ros2_ws\src\robot_assistant\robot_assistant\voice_assistant_runner.py --insert --speak --play-audio --webots-command
+
+:: One-shot import of Webots events (vs. the --follow streamer)
+python ros2_ws\src\robot_assistant\robot_assistant\webots_event_importer.py --tail 150
+
+:: MongoDB health check
+python ros2_ws\src\robot_assistant\robot_assistant\mongo_health_check.py
+
+:: Backup + reset demo collections for a clean run
+python ros2_ws\src\robot_assistant\robot_assistant\demo_reset.py
+python ros2_ws\src\robot_assistant\robot_assistant\demo_reset.py --backup-only
+
+:: Read-only KPI analysis snapshot
+python analytics\mongo_kpi_analysis.py
 ```
 
-Run the voice assistant with optional memory and perception context:
+---
+
+## 6. Environments & setup
+
+Three Python environments keep heavy perception deps isolated from the web/API:
+
+- **`.venv`** — main demo (Streamlit, pymongo, dnspython, OpenAI, ElevenLabs).
+- **`.venv-web`** — FastAPI backend (`web/backend/requirements.txt`).
+- **`.venv-perception311`** — Python 3.11/3.12 for YOLO + DeepFace + ChromaDB + OpenCV.
 
 ```bat
-python ros2_ws\src\robot_assistant\robot_assistant\voice_assistant_runner.py --insert --speak --webots-command --use-memory --scene-image data\raw\webots_scene.png --face-image data\raw\user_face.jpg
+:: Main env
+.\.venv\Scripts\activate.bat
+pip install -r requirements.txt -r requirements-mongodb.txt -r requirements-openai.txt -r requirements-voice.txt
+
+:: Perception env (Python 3.11/3.12)
+powershell -ExecutionPolicy Bypass -File .\tools\rebuild_perception_env.ps1
+python tools\perception_import_check.py
 ```
 
-Run the voice assistant with live webcam scene and face capture from the dedicated perception environment:
-
-```bat
-tools\run_voice_with_perception.cmd --device 2 --duration 7 --insert --speak --play-audio --webcam-scene --webcam-face
-```
-
-Import Webots humanoid sensor events into MongoDB Atlas:
-
-```bat
-python ros2_ws\src\robot_assistant\robot_assistant\webots_event_importer.py
-```
-
-### End-to-end telemetry timing fields
-
-The dashboard, backend, bridge, Webots controllers, MongoDB importer, and
-admin telemetry table now carry these timing fields when the data is available:
+`.env` (repo root, never committed) must contain:
 
 ```text
-ui_triggered_at
-backend_received_at
-bridge_received_at
-robot_action_started_at
-robot_action_completed_at
-mongodb_logged_at
-dashboard_updated_at
+MONGODB_URI
+MONGODB_DATABASE
+OPENAI_API_KEY
+OPENAI_MODEL
+ELEVENLABS_API_KEY
+ELEVENLABS_VOICE_ID
+ELEVENLABS_MODEL_ID
+ELEVENLABS_STT_MODEL_ID
 ```
 
-All values are epoch milliseconds. They are used to trace one dashboard action
-from the UI click through backend receipt, bridge pickup, robot action start and
-completion, MongoDB persistence, and the provider dashboard refresh. The fields
-are stored on the MongoDB document and mirrored into `payload` where existing
-dashboard helpers read nested values.
+Notes:
+- The Next.js frontend uses `NODE_OPTIONS=--use-system-ca` so Node trusts the
+  machine certificate store behind a TLS-inspecting proxy.
+- `YOLO_CONFIG_DIR` can point at `data/processed/ultralytics` to keep Ultralytics
+  cache inside the repo.
+- The core voice/robot/telemetry demo runs even without the perception stack.
 
-Test the same flow without using the OpenAI API:
+---
+
+## 7. Remote access for the demo (optional, ngrok)
+
+To show the patient portal on a phone while the Admin dashboard runs on the
+laptop — without building a separate mobile app — tunnel the running port:
 
 ```bat
-python ros2_ws\src\robot_assistant\robot_assistant\nlp_event_runner.py --text "I feel lonely today" --mock --insert
+:: after installing ngrok and adding your authtoken
+ngrok http 3000
 ```
 
-## MVP Node Direction
+ngrok prints a public `https://…` URL that maps to `localhost:3000`; open it on
+the phone. (Tunnel `8000` instead if you need the API reachable remotely.) This
+serves the exact same web app, no iOS build required.
 
-- `input_node`: receives typed or spoken user input.
-- `nlp_node`: uses the OpenAI API for response generation and structured mood/intent output.
-- `tts_node`: speaks the response using a text-to-speech provider.
-- `session_node`: stores conversation/session events.
-- `dashboard_node`: displays status, mood/session history, and robot/system state.
-- `telemetry_node`: publishes robot/system telemetry using the existing Telemetry Schema v1.
+---
 
-## Preserved Prototype
+## 8. Project structure
 
-The earlier telemetry simulator is preserved under `prototypes/telemetry_mvp` as evidence that Telemetry Schema v1 can be generated and validated for three robots.
-
-Run it from the project root:
-
-```bat
-python prototypes\telemetry_mvp\src\simulator\telemetry_simulator.py --ticks 10
-python prototypes\telemetry_mvp\src\analytics\validate_telemetry.py
+```text
+swarmsense/
+  web/
+    backend/        FastAPI API: auth, patient portal, /api/admin/kpis
+    frontend/       Next.js UI: patient portal (/) + Admin KPI dashboard (/admin)
+  ros2_ws/src/robot_assistant/robot_assistant/
+    voice_assistant_runner.py   elevenlabs_voice.py     (voice layer)
+    nlp_event_runner.py                                 (OpenAI intent)
+    vision_yolo.py  emotion_deepface.py  memory_chromadb.py  (perception)
+    dashboard_command_bridge.py                         (UI → robot bridge)
+    webots_event_importer.py                            (telemetry streamer)
+    mongo_client.py  event_schema.py  mongo_health_check.py  demo_reset.py
+  webots/           NAO world + supervisor / motion controllers
+  nesto-dashboard/  Streamlit provider dashboard + shared data_layer
+  analytics/        read-only MongoDB KPI analysis
+  local_kpi_ui_foundation/  original Admin KPI UI kit (now wired into web/)
+  tools/            run_*.cmd launchers + env builders
+  docs/             telemetry schema, demo runbook, architecture/planning
 ```
+
+See [docs/demo/saturday_demo_runbook.md](docs/demo/saturday_demo_runbook.md) for
+the step-by-step demo script and fallback plan.
