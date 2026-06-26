@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v19-obstacle-stop-fall-recovery"
+CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v20-nav-debug"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -1053,6 +1053,18 @@ def main() -> None:
                     motion_hold_until = now + MOTION_STEP_SECONDS[committed_motion]
                     settle_until = motion_hold_until + SETTLE_SECONDS
                     motion_sequence += 1
+                    # --- nav diagnostics (v20): one line per committed gait so we
+                    # can see whether the heading aligns and whether walk_forward
+                    # actually closes the gap to the goal. Remove once nav is fixed.
+                    _actual_yaw = get_yaw(nao_node)
+                    _gdist = planar_distance(position, navigation_goal)
+                    _safe_print(
+                        f"[nav] seq={motion_sequence} pos=({position[0]:.2f},{position[1]:.2f}) "
+                        f"goal=({navigation_goal[0]:.2f},{navigation_goal[1]:.2f}) gdist={_gdist:.2f} "
+                        f"desired_deg={math.degrees(desired_yaw):.0f} yaw_deg={math.degrees(_actual_yaw):.0f} "
+                        f"err_deg={math.degrees(yaw_error):.0f} aligned={heading_aligned} "
+                        f"fwd_clear={forward_is_clear(robot, position, _actual_yaw)} -> {committed_motion}"
+                    )
             elif action == "search_object":
                 if robot.getTime() < motion_hold_until and committed_motion != "idle":
                     locomotion_motion, locomotion_loop = committed_motion, False
