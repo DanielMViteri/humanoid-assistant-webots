@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v22-final-approach"
+CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v23-medicine-standoff"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -53,6 +53,7 @@ WAYPOINT_REACHED_DISTANCE_METERS = 0.50
 # so it walks up to the table's west edge and "picks it up" there (the box is then
 # moved into the hand-off pose). 0.72 m lands the robot at the table edge (~x=-1.38)
 # once the 1 Hz completion check + walk overshoot are accounted for.
+MEDICINE_STANDOFF_WEST_M = 0.63  # how far WEST of the box the NAO stands (open floor)
 MEDICINE_REACH_DISTANCE_METERS = 0.80  # standoff so the NAO stops on open floor
                                        # WEST of the table, never walking into it
 STALL_DETECTION_DISTANCE_METERS = 0.02
@@ -753,6 +754,20 @@ def navigation_goal_for_command(
                 last_seen_target_position,
             ), route_index
         return None, route_index
+
+    if action == "check_medicine" and target_position is not None:
+        # The medicine box sits on the coffee table; heading straight at it drives
+        # the NAO into the table. Instead aim for a standoff just WEST of the box on
+        # open floor -- ~0.63 m away, inside MEDICINE_REACH (0.80), so completion
+        # fires before the robot reaches the table. (The old waypoint route was
+        # pre-skipped: both points spawn within 0.5 m of the start, leaving no goal,
+        # so the robot never approached the box at all.)
+        standoff = [
+            target_position[0] - MEDICINE_STANDOFF_WEST_M,
+            target_position[1],
+            NAVIGATION_HEIGHT,
+        ]
+        return standoff, route_index
 
     route = route_for_command(active_command, target_position, NAVIGATION_HEIGHT)
     if not route:
