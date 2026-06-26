@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-25-nao-supervisor-v18-real-walk-settle-gate"
+CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v19-obstacle-stop-fall-recovery"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -118,6 +118,17 @@ CAMERA_NAV_ENABLED = False
 CAMERA_FALLBACK_ENABLED = True
 PERCEPTION_MAX_AGE_SECONDS = 1.0
 SAFE_FORWARD_CLEARANCE_M = 0.6
+
+# --- Real-walk safety (v19): stop before obstacles, recover from stumbles -----
+# The god-mode route planner aims the heading; the NAO then walks with real
+# physics gaits. Two guards keep that from ending in a fall:
+#   * never commit walk_forward when an obstacle is within the lookahead, and
+#   * if the base drops/tips below FALL_RECOVERY_MIN_Z, stand it back up in place
+#     (keep x/y progress + heading) so a single stumble does not abort the task.
+FORWARD_LOOKAHEAD_M = 0.45
+WALK_STOP_CLEARANCE_M = 0.15
+AVOID_TURN_PROBE_RADIANS = 0.6
+FALL_RECOVERY_MIN_Z = 0.20
 TARGET_BEARING_TOLERANCE_RAD = 0.30
 CAMERA_NAV_ACTIONS = {"search_object", "check_medicine"}
 
@@ -518,6 +529,45 @@ def obstacle_clearance_for_point(robot: Supervisor, point: list[float], ignore_d
     return min(clearances)
 
 
+def _heading_forward(yaw: float) -> tuple[float, float]:
+    # Unit vector the NAO base faces, matching desired_yaw = atan2(dx, -dy).
+    return math.sin(yaw), -math.cos(yaw)
+
+
+def _clearance_along_heading(robot: Supervisor, position: list[float], yaw: float, distance: float) -> float:
+    fx, fy = _heading_forward(yaw)
+    probe = [position[0] + fx * distance, position[1] + fy * distance, NAVIGATION_HEIGHT]
+    return obstacle_clearance_for_point(robot, probe)
+
+
+def forward_is_clear(robot: Supervisor, position: list[float], yaw: float) -> bool:
+    return _clearance_along_heading(robot, position, yaw, FORWARD_LOOKAHEAD_M) >= WALK_STOP_CLEARANCE_M
+
+
+def turn_toward_open_side(robot: Supervisor, position: list[float], yaw: float) -> str:
+    left = _clearance_along_heading(robot, position, yaw + AVOID_TURN_PROBE_RADIANS, FORWARD_LOOKAHEAD_M)
+    right = _clearance_along_heading(robot, position, yaw - AVOID_TURN_PROBE_RADIANS, FORWARD_LOOKAHEAD_M)
+    return "turn_left" if left >= right else "turn_right"
+
+
+def recover_if_fallen(robot: Supervisor, nao_node, position: list[float], yaw: float) -> bool:
+    # Stand the NAO upright in place if it tipped or sank (a real-physics
+    # stumble), preserving x/y progress and heading so navigation continues.
+    if position[2] >= FALL_RECOVERY_MIN_Z:
+        return False
+    translation_field = nao_node.getField("translation")
+    rotation_field = nao_node.getField("rotation")
+    if translation_field is None or rotation_field is None:
+        return False
+    translation_field.setSFVec3f([position[0], position[1], NAVIGATION_HEIGHT])
+    rotation_field.setSFRotation([0.0, 0.0, 1.0, yaw])
+    try:
+        nao_node.resetPhysics()
+    except Exception:
+        pass
+    return True
+
+
 def nearest_obstacle_to_point(
     robot: Supervisor,
     point: list[float],
@@ -882,6 +932,8 @@ def main() -> None:
             )
 
         position = get_position(nao_node) or [0.0, 0.0, 0.0]
+        if recover_if_fallen(robot, nao_node, position, get_yaw(nao_node)):
+            position = get_position(nao_node) or position
         action = active_command.get("action") if active_command else None
         target_object = active_command.get("target_object") if active_command else None
         active_command_id = active_command.get("command_id") if active_command else None
@@ -989,8 +1041,12 @@ def main() -> None:
                     committed_motion = "idle"
                     locomotion_motion, locomotion_loop = "idle", False
                 else:
-                    if heading_aligned:
+                    if heading_aligned and forward_is_clear(robot, position, get_yaw(nao_node)):
                         committed_motion = "walk_forward"
+                    elif heading_aligned:
+                        # Heading is right but an obstacle (e.g. the coffee table)
+                        # is within the lookahead -- steer around it, don't walk in.
+                        committed_motion = turn_toward_open_side(robot, position, get_yaw(nao_node))
                     else:
                         committed_motion = "turn_left" if yaw_error > 0 else "turn_right"
                     locomotion_motion, locomotion_loop = committed_motion, False
