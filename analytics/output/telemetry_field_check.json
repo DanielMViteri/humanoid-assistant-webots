@@ -1,0 +1,2484 @@
+{
+  "generated_at": "2026-06-25T22:19:54.559949+00:00",
+  "database": "humanoid_assistant",
+  "uri_source": "configured",
+  "read_only_operations_used": [
+    "list_collection_names",
+    "count_documents",
+    "find_one",
+    "find"
+  ],
+  "write_operations_used": [],
+  "daniel_filter": "{ \"payload.active_command_id\": { \"$ne\": null }, \"ui_triggered_at\": { \"$exists\": true } }",
+  "required_timestamp_fields": [
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at"
+  ],
+  "important_collections": [
+    "robot_status",
+    "conversation_events",
+    "scenario_events",
+    "environment_events",
+    "alerts",
+    "medicine_events",
+    "mood_events",
+    "schedule_events"
+  ],
+  "collections": {
+    "alerts": {
+      "total_documents": 249,
+      "daniel_filter_match_count": 1,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        },
+        "backend_received_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        },
+        "bridge_received_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        },
+        "robot_action_started_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        },
+        "robot_action_completed_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        },
+        "mongodb_logged_at": {
+          "top_level": 33,
+          "nested": 0,
+          "any_shape": 33
+        },
+        "dashboard_updated_at": {
+          "top_level": 11,
+          "nested": 0,
+          "any_shape": 11
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 11,
+      "all_required_timestamp_fields_count_top_level": 11,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 33
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": "2026-06-25T22:00:47.564000+00:00",
+      "most_recent_matching_document_timestamp_field": "top_level:mongodb_logged_at",
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "timestamp": "Int64",
+        "source": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "payload": {
+          "object": "str",
+          "status": "str",
+          "severity": "str",
+          "reason": "str",
+          "distance_m": "float",
+          "relative_position": {
+            "x": "float",
+            "y": "float",
+            "z": "float"
+          },
+          "room": "str",
+          "active_command_id": "[redacted]",
+          "active_intent": "str",
+          "sensor": "str",
+          "ui_triggered_at": "null",
+          "backend_received_at": "null",
+          "bridge_received_at": "null",
+          "robot_action_started_at": "null",
+          "robot_action_completed_at": "null",
+          "mongodb_logged_at": "Int64",
+          "dashboard_updated_at": "null"
+        },
+        "ingested_at": "Int64",
+        "ui_triggered_at": "null",
+        "backend_received_at": "null",
+        "bridge_received_at": "null",
+        "robot_action_started_at": "null",
+        "robot_action_completed_at": "null",
+        "mongodb_logged_at": "Int64",
+        "dashboard_updated_at": "null"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 249
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        },
+        "backend_received_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        },
+        "bridge_received_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        },
+        "robot_action_started_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 11,
+          "nested_null": 0,
+          "any_null": 11
+        }
+      }
+    },
+    "auth_users": {
+      "total_documents": 13,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "backend_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "bridge_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_started_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_completed_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "mongodb_logged_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "dashboard_updated_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 0,
+      "all_required_timestamp_fields_count_top_level": 0,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {},
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "user_id": "[redacted]",
+        "username": "[redacted]",
+        "email": "[redacted]",
+        "display_name": "[redacted]",
+        "role": "str",
+        "profile_id": "[redacted]",
+        "linked_patient_ids": [],
+        "linked_patients": [],
+        "username_normalized": "[redacted]",
+        "email_normalized": "[redacted]",
+        "password_hash": "[redacted]",
+        "status": "str",
+        "created_at": "str",
+        "updated_at": "str",
+        "seeded": "bool"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 13
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        }
+      }
+    },
+    "caregiver_notes": {
+      "total_documents": 9,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "backend_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "bridge_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_started_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_completed_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "mongodb_logged_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "dashboard_updated_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 0,
+      "all_required_timestamp_fields_count_top_level": 0,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {},
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_alias": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "guardian_id": "[redacted]",
+          "guardian_name": "[redacted]",
+          "patient_id": "[redacted]",
+          "patient_name": "[redacted]",
+          "patient_preferred_name": "[redacted]",
+          "message": "[redacted]",
+          "caregiver_action": "[redacted]",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str"
+        },
+        "metadata": {
+          "producer": "str",
+          "write_wrapper": "str",
+          "target_collection": "str"
+        }
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 9
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        }
+      }
+    },
+    "conversation_events": {
+      "total_documents": 273,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "backend_received_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "bridge_received_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "robot_action_started_at": {
+          "top_level": 2,
+          "nested": 0,
+          "any_shape": 2
+        },
+        "robot_action_completed_at": {
+          "top_level": 2,
+          "nested": 0,
+          "any_shape": 2
+        },
+        "mongodb_logged_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "dashboard_updated_at": {
+          "top_level": 2,
+          "nested": 0,
+          "any_shape": 2
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 2,
+      "all_required_timestamp_fields_count_top_level": 2,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {
+          "unix_milliseconds": 6
+        },
+        "backend_received_at": {
+          "unix_milliseconds": 6
+        },
+        "bridge_received_at": {
+          "unix_milliseconds": 6
+        },
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 6
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "timestamp": "Int64",
+        "source": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "payload": {
+          "command_id": "[redacted]",
+          "intent": "str",
+          "action": "str",
+          "target_object": "str",
+          "scenario": "str",
+          "scenario_event_id": "[redacted]",
+          "command_source": "str",
+          "ui_triggered_at": "Int64",
+          "backend_received_at": "Int64",
+          "bridge_received_at": "Int64",
+          "mongodb_logged_at": "Int64"
+        },
+        "ui_triggered_at": "Int64",
+        "backend_received_at": "Int64",
+        "bridge_received_at": "Int64",
+        "mongodb_logged_at": "Int64",
+        "ingested_at": "Int64"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 6,
+          "min_ms": 18.0,
+          "median_ms": 23.0,
+          "average_ms": 23.0,
+          "p95_ms": null,
+          "max_ms": 30.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 267
+        },
+        "backend_to_bridge": {
+          "sample_count": 6,
+          "min_ms": 428.0,
+          "median_ms": 2235.5,
+          "average_ms": 2041.5,
+          "p95_ms": null,
+          "max_ms": 3138.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 267
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 273
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 273
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 273
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 273
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 273
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 2,
+          "nested_null": 0,
+          "any_null": 2
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 2,
+          "nested_null": 0,
+          "any_null": 2
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 2,
+          "nested_null": 0,
+          "any_null": 2
+        }
+      }
+    },
+    "environment_events": {
+      "total_documents": 20972,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        },
+        "backend_received_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        },
+        "bridge_received_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        },
+        "robot_action_started_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        },
+        "robot_action_completed_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        },
+        "mongodb_logged_at": {
+          "top_level": 2333,
+          "nested": 0,
+          "any_shape": 2333
+        },
+        "dashboard_updated_at": {
+          "top_level": 306,
+          "nested": 0,
+          "any_shape": 306
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 306,
+      "all_required_timestamp_fields_count_top_level": 306,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 2333
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "timestamp": "Int64",
+        "source": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "payload": {
+          "object": "str",
+          "confidence": "float",
+          "relative_position": {
+            "x": "float",
+            "y": "float",
+            "z": "float"
+          },
+          "sensor": "str",
+          "mongodb_logged_at": "Int64"
+        },
+        "ingested_at": "Int64",
+        "mongodb_logged_at": "Int64"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 20972
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        },
+        "backend_received_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        },
+        "bridge_received_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        },
+        "robot_action_started_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 306,
+          "nested_null": 0,
+          "any_null": 306
+        }
+      }
+    },
+    "medicine_events": {
+      "total_documents": 21,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "backend_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "bridge_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_started_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_completed_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "mongodb_logged_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "dashboard_updated_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 0,
+      "all_required_timestamp_fields_count_top_level": 0,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {},
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "message": "[redacted]",
+          "prepared_scenario_type": "str",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str"
+        }
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 21
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        }
+      }
+    },
+    "mood_events": {
+      "total_documents": 96,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 3,
+          "nested": 0,
+          "any_shape": 3
+        },
+        "backend_received_at": {
+          "top_level": 3,
+          "nested": 0,
+          "any_shape": 3
+        },
+        "bridge_received_at": {
+          "top_level": 3,
+          "nested": 0,
+          "any_shape": 3
+        },
+        "robot_action_started_at": {
+          "top_level": 1,
+          "nested": 0,
+          "any_shape": 1
+        },
+        "robot_action_completed_at": {
+          "top_level": 1,
+          "nested": 0,
+          "any_shape": 1
+        },
+        "mongodb_logged_at": {
+          "top_level": 3,
+          "nested": 0,
+          "any_shape": 3
+        },
+        "dashboard_updated_at": {
+          "top_level": 1,
+          "nested": 0,
+          "any_shape": 1
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 1,
+      "all_required_timestamp_fields_count_top_level": 1,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {
+          "unix_milliseconds": 3
+        },
+        "backend_received_at": {
+          "unix_milliseconds": 3
+        },
+        "bridge_received_at": {
+          "unix_milliseconds": 3
+        },
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 3
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_alias": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "mood": "str",
+          "clinical": "bool",
+          "ui_triggered_at": "Int64",
+          "backend_received_at": "Int64",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str",
+          "bridge_received_at": "Int64",
+          "robot_action_started_at": "null",
+          "robot_action_completed_at": "null",
+          "mongodb_logged_at": "Int64",
+          "dashboard_updated_at": "null"
+        },
+        "metadata": {
+          "producer": "str",
+          "write_wrapper": "str",
+          "target_collection": "str"
+        },
+        "ui_triggered_at": "Int64",
+        "backend_received_at": "Int64",
+        "bridge_received_at": "Int64",
+        "robot_action_started_at": "null",
+        "robot_action_completed_at": "null",
+        "mongodb_logged_at": "Int64",
+        "dashboard_updated_at": "null"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 3,
+          "min_ms": 6.0,
+          "median_ms": 6.0,
+          "average_ms": 6.0,
+          "p95_ms": null,
+          "max_ms": 6.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 93
+        },
+        "backend_to_bridge": {
+          "sample_count": 3,
+          "min_ms": 2490.0,
+          "median_ms": 2490.0,
+          "average_ms": 2490.0,
+          "p95_ms": null,
+          "max_ms": 2490.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 93
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 96
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 96
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 96
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 96
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 96
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 1,
+          "nested_null": 0,
+          "any_null": 1
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 1,
+          "nested_null": 0,
+          "any_null": 1
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 1,
+          "nested_null": 0,
+          "any_null": 1
+        }
+      }
+    },
+    "robot_status": {
+      "total_documents": 4770,
+      "daniel_filter_match_count": 78,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        },
+        "backend_received_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        },
+        "bridge_received_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        },
+        "robot_action_started_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        },
+        "robot_action_completed_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        },
+        "mongodb_logged_at": {
+          "top_level": 516,
+          "nested": 0,
+          "any_shape": 516
+        },
+        "dashboard_updated_at": {
+          "top_level": 82,
+          "nested": 0,
+          "any_shape": 82
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 82,
+      "all_required_timestamp_fields_count_top_level": 82,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {
+          "unix_milliseconds": 78
+        },
+        "backend_received_at": {
+          "unix_milliseconds": 78
+        },
+        "bridge_received_at": {
+          "unix_milliseconds": 78
+        },
+        "robot_action_started_at": {
+          "unix_milliseconds": 78
+        },
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 516
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": "2026-06-25T22:02:05.488000+00:00",
+      "most_recent_matching_document_timestamp_field": "top_level:mongodb_logged_at",
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "timestamp": "Int64",
+        "source": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "payload": {
+          "status": "str",
+          "task_status": "str",
+          "active_command_id": "[redacted]",
+          "active_intent": "str",
+          "target_object": "str",
+          "robot_model": "str",
+          "sensor_source": "str",
+          "ui_triggered_at": "Int64",
+          "backend_received_at": "Int64",
+          "bridge_received_at": "Int64",
+          "robot_action_started_at": "Int64",
+          "mongodb_logged_at": "Int64",
+          "robot_action_completed_at": "null",
+          "dashboard_updated_at": "null"
+        },
+        "ingested_at": "Int64",
+        "ui_triggered_at": "Int64",
+        "backend_received_at": "Int64",
+        "bridge_received_at": "Int64",
+        "robot_action_started_at": "Int64",
+        "robot_action_completed_at": "null",
+        "mongodb_logged_at": "Int64",
+        "dashboard_updated_at": "null"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 78,
+          "min_ms": 23.0,
+          "median_ms": 23.0,
+          "average_ms": 23.0,
+          "p95_ms": 23.0,
+          "max_ms": 23.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4692
+        },
+        "backend_to_bridge": {
+          "sample_count": 78,
+          "min_ms": 1803.0,
+          "median_ms": 1803.0,
+          "average_ms": 1803.0,
+          "p95_ms": 1803.0,
+          "max_ms": 1803.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4692
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 78,
+          "min_ms": 45.0,
+          "median_ms": 45.0,
+          "average_ms": 45.0,
+          "p95_ms": 45.0,
+          "max_ms": 45.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4692
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4770
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4770
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4770
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 4770
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 4,
+          "nested_null": 0,
+          "any_null": 4
+        },
+        "backend_received_at": {
+          "top_level_null": 4,
+          "nested_null": 0,
+          "any_null": 4
+        },
+        "bridge_received_at": {
+          "top_level_null": 4,
+          "nested_null": 0,
+          "any_null": 4
+        },
+        "robot_action_started_at": {
+          "top_level_null": 4,
+          "nested_null": 0,
+          "any_null": 4
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 82,
+          "nested_null": 0,
+          "any_null": 82
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 82,
+          "nested_null": 0,
+          "any_null": 82
+        }
+      }
+    },
+    "scenario_events": {
+      "total_documents": 359,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "backend_received_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "bridge_received_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "robot_action_started_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "robot_action_completed_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "mongodb_logged_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        },
+        "dashboard_updated_at": {
+          "top_level": 6,
+          "nested": 0,
+          "any_shape": 6
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 6,
+      "all_required_timestamp_fields_count_top_level": 6,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [
+        "ui_triggered_at",
+        "backend_received_at",
+        "bridge_received_at",
+        "robot_action_started_at",
+        "robot_action_completed_at",
+        "mongodb_logged_at",
+        "dashboard_updated_at"
+      ],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {
+          "unix_milliseconds": 6
+        },
+        "backend_received_at": {
+          "unix_milliseconds": 6
+        },
+        "bridge_received_at": {
+          "unix_milliseconds": 6
+        },
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {
+          "unix_milliseconds": 6
+        },
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_alias": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "object": "str",
+          "target_object": "str",
+          "last_known_location": "str",
+          "search_status": "str",
+          "ui_triggered_at": "Int64",
+          "backend_received_at": "Int64",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str",
+          "bridge_received_at": "Int64",
+          "robot_action_started_at": "null",
+          "robot_action_completed_at": "null",
+          "mongodb_logged_at": "Int64",
+          "dashboard_updated_at": "null"
+        },
+        "metadata": {
+          "producer": "str",
+          "write_wrapper": "str",
+          "target_collection": "str"
+        },
+        "ui_triggered_at": "Int64",
+        "backend_received_at": "Int64",
+        "bridge_received_at": "Int64",
+        "robot_action_started_at": "null",
+        "robot_action_completed_at": "null",
+        "mongodb_logged_at": "Int64",
+        "dashboard_updated_at": "null"
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 6,
+          "min_ms": 18.0,
+          "median_ms": 23.0,
+          "average_ms": 23.0,
+          "p95_ms": null,
+          "max_ms": 30.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 353
+        },
+        "backend_to_bridge": {
+          "sample_count": 6,
+          "min_ms": 428.0,
+          "median_ms": 2235.5,
+          "average_ms": 2041.5,
+          "p95_ms": null,
+          "max_ms": 3138.0,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 353
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 359
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 359
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 359
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 359
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 359
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 6,
+          "nested_null": 0,
+          "any_null": 6
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 6,
+          "nested_null": 0,
+          "any_null": 6
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 6,
+          "nested_null": 0,
+          "any_null": 6
+        }
+      }
+    },
+    "schedule_events": {
+      "total_documents": 10,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "backend_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "bridge_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_started_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_completed_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "mongodb_logged_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "dashboard_updated_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 0,
+      "all_required_timestamp_fields_count_top_level": 0,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {},
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "message": "[redacted]",
+          "source": "str",
+          "user_id": "[redacted]",
+          "patient_id": "[redacted]",
+          "patient_name": "[redacted]",
+          "guardian_contact": "[redacted]",
+          "robot_id": "[redacted]",
+          "robot_name": "[redacted]",
+          "notify_guardian": "[redacted]",
+          "schedule_date": "str",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str"
+        }
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 10
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        }
+      }
+    },
+    "user_profiles": {
+      "total_documents": 26,
+      "daniel_filter_match_count": 0,
+      "timestamp_field_counts": {
+        "ui_triggered_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "backend_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "bridge_received_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_started_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "robot_action_completed_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "mongodb_logged_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        },
+        "dashboard_updated_at": {
+          "top_level": 0,
+          "nested": 0,
+          "any_shape": 0
+        }
+      },
+      "all_required_timestamp_fields_count_any_shape": 0,
+      "all_required_timestamp_fields_count_top_level": 0,
+      "all_required_timestamp_fields_count_nested": 0,
+      "fields_top_level_present": [],
+      "fields_nested_present": [],
+      "timestamp_value_type_counts": {
+        "ui_triggered_at": {},
+        "backend_received_at": {},
+        "bridge_received_at": {},
+        "robot_action_started_at": {},
+        "robot_action_completed_at": {},
+        "mongodb_logged_at": {},
+        "dashboard_updated_at": {}
+      },
+      "most_recent_matching_document_timestamp": null,
+      "most_recent_matching_document_timestamp_field": null,
+      "redacted_sample_document_shape": {
+        "_id": "[redacted]",
+        "event_id": "[redacted]",
+        "event_type": "str",
+        "scenario_type": "str",
+        "timestamp": "Int64",
+        "time": "str",
+        "source": "str",
+        "source_page": "str",
+        "user_id": "[redacted]",
+        "robot_id": "[redacted]",
+        "role": "str",
+        "status": "str",
+        "payload": {
+          "user_id": "[redacted]",
+          "full_name": "[redacted]",
+          "preferred_name": "[redacted]",
+          "age": "int",
+          "robot_name": "[redacted]",
+          "guardian_contact": "[redacted]",
+          "medicine_routine": [
+            {
+              "medicine_name": "[redacted]",
+              "dose": "...",
+              "frequency": "...",
+              "reminder_time": "..."
+            }
+          ],
+          "preferences": {
+            "important_object": "str",
+            "nesto_tone": "str",
+            "preferred_language": "str",
+            "care_notes": "str",
+            "extra_memory_notes": "str"
+          },
+          "api_endpoint": "str",
+          "redis_cache": "str",
+          "kafka_topic": "str",
+          "kafka_status": "str",
+          "next_of_kin": "[redacted]",
+          "scenario_type": "str",
+          "status": "str",
+          "source_page": "str"
+        }
+      },
+      "latency_metrics": {
+        "ui_to_backend": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "backend_to_bridge": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "bridge_to_robot_start": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "robot_action_duration": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "robot_to_mongodb": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "mongodb_to_dashboard": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        },
+        "end_to_end": {
+          "sample_count": 0,
+          "min_ms": null,
+          "median_ms": null,
+          "average_ms": null,
+          "p95_ms": null,
+          "max_ms": null,
+          "invalid_negative_duration_count": 0,
+          "invalid_parse_count": 0,
+          "missing_field_count": 26
+        }
+      },
+      "timestamp_null_counts": {
+        "ui_triggered_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "backend_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "bridge_received_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_started_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "robot_action_completed_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "mongodb_logged_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        },
+        "dashboard_updated_at": {
+          "top_level_null": 0,
+          "nested_null": 0,
+          "any_null": 0
+        }
+      }
+    }
+  },
+  "global_field_counts": {
+    "ui_triggered_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "backend_received_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "bridge_received_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "robot_action_started_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    },
+    "robot_action_completed_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    },
+    "mongodb_logged_at": {
+      "top_level": 2897,
+      "nested": 0,
+      "any": 2897
+    },
+    "dashboard_updated_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    }
+  },
+  "global_timestamp_type_counts": {
+    "ui_triggered_at": {
+      "unix_milliseconds": 93
+    },
+    "backend_received_at": {
+      "unix_milliseconds": 93
+    },
+    "bridge_received_at": {
+      "unix_milliseconds": 93
+    },
+    "robot_action_started_at": {
+      "unix_milliseconds": 78
+    },
+    "robot_action_completed_at": {},
+    "mongodb_logged_at": {
+      "unix_milliseconds": 2897
+    },
+    "dashboard_updated_at": {}
+  },
+  "notes": [],
+  "connection_status": "connected",
+  "collections_inspected": [
+    "alerts",
+    "auth_users",
+    "caregiver_notes",
+    "conversation_events",
+    "environment_events",
+    "medicine_events",
+    "mood_events",
+    "robot_status",
+    "scenario_events",
+    "schedule_events",
+    "user_profiles"
+  ],
+  "total_documents_inspected": 26798,
+  "daniel_filter_total_matches": 79,
+  "global_timestamp_null_counts": {
+    "ui_triggered_at": {
+      "top_level_null": 321,
+      "nested_null": 0,
+      "any_null": 321
+    },
+    "backend_received_at": {
+      "top_level_null": 321,
+      "nested_null": 0,
+      "any_null": 321
+    },
+    "bridge_received_at": {
+      "top_level_null": 321,
+      "nested_null": 0,
+      "any_null": 321
+    },
+    "robot_action_started_at": {
+      "top_level_null": 330,
+      "nested_null": 0,
+      "any_null": 330
+    },
+    "robot_action_completed_at": {
+      "top_level_null": 408,
+      "nested_null": 0,
+      "any_null": 408
+    },
+    "mongodb_logged_at": {
+      "top_level_null": 0,
+      "nested_null": 0,
+      "any_null": 0
+    },
+    "dashboard_updated_at": {
+      "top_level_null": 408,
+      "nested_null": 0,
+      "any_null": 408
+    }
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "generated_at": "2026-06-25T22:19:54.559949+00:00",
+  "database": "humanoid_assistant",
+  "connection_status": "connected",
+  "collections_inspected_count": 11,
+  "collections_inspected": [
+    "alerts",
+    "auth_users",
+    "caregiver_notes",
+    "conversation_events",
+    "environment_events",
+    "medicine_events",
+    "mood_events",
+    "robot_status",
+    "scenario_events",
+    "schedule_events",
+    "user_profiles"
+  ],
+  "daniel_filter_total_matches": 79,
+  "timestamp_field_presence_any_shape": {
+    "ui_triggered_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "backend_received_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "bridge_received_at": {
+      "top_level": 414,
+      "nested": 0,
+      "any": 414
+    },
+    "robot_action_started_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    },
+    "robot_action_completed_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    },
+    "mongodb_logged_at": {
+      "top_level": 2897,
+      "nested": 0,
+      "any": 2897
+    },
+    "dashboard_updated_at": {
+      "top_level": 408,
+      "nested": 0,
+      "any": 408
+    }
+  },
+  "kpis": {
+    "pipeline_status": {
+      "status": "Partial",
+      "current_value": "inferred_from_mongodb_freshness",
+      "reason": "No explicit live service status fields were checked; pipeline status can only be inferred from MongoDB telemetry freshness."
+    },
+    "end_to_end_latency": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "ui_triggered_at",
+      "end_field": "dashboard_updated_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    },
+    "mongodb_write_latency": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "robot_action_completed_at",
+      "end_field": "mongodb_logged_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    },
+    "dashboard_refresh_latency": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "mongodb_logged_at",
+      "end_field": "dashboard_updated_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    }
+  },
+  "no_mongodb_writes_performed": true,
+  "credentials_exported": false
+}

@@ -1,0 +1,65 @@
+{
+  "endpoint": "GET /api/admin/kpis",
+  "generated_at": "",
+  "database": "humanoid_assistant",
+  "source": "read_only_mongodb",
+  "pipeline_status": {},
+  "top_kpis": [
+    {
+      "id": "string",
+      "label": "string",
+      "status": "Available | Partial | Unavailable",
+      "value": "string",
+      "detail": "string",
+      "target": "string"
+    }
+  ],
+  "latency": {
+    "segments": [],
+    "missing_fields": [],
+    "parseability": {},
+    "notes": []
+  },
+  "event_success_rate": {},
+  "last_robot_action": {},
+  "active_collections": {},
+  "failed_events": {},
+  "mongo_sync": {
+    "collections": [
+      {
+        "collection": "string",
+        "documents": 0,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "Active | Partial | No telemetry",
+        "last_update": "string | null",
+        "notes": "string"
+      }
+    ]
+  },
+  "recent_events": [
+    {
+      "time": "string | null",
+      "event_id": "redacted",
+      "trigger": "string | null",
+      "scenario": "string | null",
+      "robot_action": "string | null",
+      "status": "string | null",
+      "end_to_end_latency": "string | null",
+      "mongodb": "Logged | Not logged | null"
+    }
+  ],
+  "missing_telemetry_fields": [],
+  "nlp_guardrails": {},
+  "safety": {
+    "read_only": true,
+    "writes_performed": false,
+    "credentials_redacted": true
+  },
+  "schema_notes": {
+    "pipeline_status": "Partial unless explicit live service telemetry exists.",
+    "latency": "Only calculate segments when both timestamps exist and parse.",
+    "recent_events": "Must be redacted and must not include raw private content.",
+    "frontend_credentials": "No MongoDB connection details belong in frontend code."
+  }
+}
