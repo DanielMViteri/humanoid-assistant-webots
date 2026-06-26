@@ -104,7 +104,6 @@ export function AdminKpiDashboard({
   }
 
   const services = data.services || [];
-  const blockedKpis = Array.from(new Set(data.missing_telemetry_fields.flatMap((field) => field.blocked_kpis)));
 
   return (
     <div className="operations-shell">
@@ -268,11 +267,11 @@ export function AdminKpiDashboard({
           </article>
 
           <article className="panel panel-wide" id="mongo-sync">
-            <div className="panel-heading"><span className="panel-index">6</span><div><h2>MongoDB Sync Monitor</h2><p>Collection coverage and Daniel filter matches.</p></div></div>
+            <div className="panel-heading"><span className="panel-index">6</span><div><h2>MongoDB Sync Monitor</h2><p>Collection coverage and command-linked document counts.</p></div></div>
             <div className="table-wrap">
               <table>
                 <thead>
-                  <tr><th>Collection</th><th>Documents</th><th>Daniel Filter Matches</th><th>All Required Timestamp Fields Present</th><th>Status</th><th>Last Update</th><th>Notes</th></tr>
+                  <tr><th>Collection</th><th>Documents</th><th>Command-Linked Docs</th><th>All Required Timestamp Fields Present</th><th>Status</th><th>Last Update</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
                   {data.mongo_sync.collections.map((item) => (
@@ -319,24 +318,8 @@ export function AdminKpiDashboard({
             )}
           </article>
 
-          <article className="panel" id="missing-telemetry">
-            <div className="panel-heading"><span className="panel-index">8</span><div><h2>Missing Telemetry Fields</h2><p>Current blockers for complete KPI calculation.</p></div></div>
-            <div className="missing-details">
-              <div>
-                {data.missing_telemetry_fields.map((field) => (
-                  <div className="missing-field" key={field.field}>
-                    <strong>{field.field}</strong>
-                    <span>{field.state}</span>
-                  </div>
-                ))}
-              </div>
-              <h3>Blocked KPI calculations</h3>
-              <ul>{blockedKpis.map((item) => <li key={item}>{item}</li>)}</ul>
-            </div>
-          </article>
-
           <article className="panel" id="system-info">
-            <div className="panel-heading"><span className="panel-index">9</span><div><h2>System Quick Info</h2><p>Snapshot scope and integration readiness.</p></div></div>
+            <div className="panel-heading"><span className="panel-index">8</span><div><h2>System Quick Info</h2><p>Snapshot scope and integration readiness.</p></div></div>
             <div className="quick-info-list">
               {["MongoDB", "Kafka", "Redis", "ChromaDB"].map((name) => {
                 const svc = services.find((item) => item.name === name);

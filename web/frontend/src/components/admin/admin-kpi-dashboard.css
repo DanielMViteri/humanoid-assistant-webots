@@ -98,9 +98,11 @@ button {
 
 .sidebar-mascot {
   position: relative;
+  flex: 0 0 auto;
   width: 174px;
-  height: 166px;
-  margin: 6px auto 10px;
+  height: 178px;
+  margin: 6px auto 16px;
+  overflow: hidden;
 }
 
 .mascot-head,
@@ -1167,7 +1169,4 @@ th button:focus-visible {
   }
 
   .refresh-note,
-  .load-warning {
-    justify-self: stretch;
-  }
-}
+  .load-warni
