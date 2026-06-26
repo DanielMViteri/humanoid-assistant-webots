@@ -23,6 +23,52 @@ from mongo_client import MongoEventClient, PROJECT_ROOT, mongo_error_hint
 DEFAULT_INPUT = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 DEFAULT_POLL_SECONDS = 2.0
 
+# Collections whose recent docs should carry dashboard_updated_at so the admin KPI
+# dashboard's MongoDB->Dashboard and End-to-End latency segments stay live.
+DASHBOARD_STAMP_COLLECTIONS = (
+    "robot_status",
+    "scenario_events",
+    "conversation_events",
+    "environment_events",
+    "mood_events",
+    "alerts",
+    "medicine_events",
+    "schedule_events",
+)
+
+
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+def stamp_dashboard_updated_at(mongo: MongoEventClient, *, window_ms: int) -> int:
+    """Stamp dashboard_updated_at (top-level + payload) on recently-created docs
+    that do not have it yet, so the admin KPI dashboard's MongoDB->Dashboard and
+    End-to-End latency segments stay live as telemetry streams in.
+
+    Real value only: it is set to "now" (the moment the live telemetry pipeline
+    surfaced the event), and only for docs whose own ``timestamp`` is within the
+    recent window -- so backfilled/old events never produce inflated latencies.
+    Write-once: docs that already have the field are left untouched.
+    """
+    now = _now_ms()
+    cutoff = now - max(0, window_ms)
+    query = {
+        "$and": [
+            {"$or": [{"dashboard_updated_at": {"$exists": False}}, {"dashboard_updated_at": None}]},
+            {"timestamp": {"$gte": cutoff}},
+        ]
+    }
+    update = {"$set": {"dashboard_updated_at": now, "payload.dashboard_updated_at": now}}
+    stamped = 0
+    for name in DASHBOARD_STAMP_COLLECTIONS:
+        try:
+            result = mongo.db[name].update_many(query, update)
+            stamped += int(getattr(result, "modified_count", 0) or 0)
+        except Exception:
+            continue
+    return stamped
+
 
 def read_events(path: Path) -> list[dict]:
     events: list[dict] = []
@@ -72,6 +118,8 @@ def follow_events(
     from_start: bool,
     skip_types: set[str],
     dry_run: bool,
+    stamp_dashboard: bool = True,
+    stamp_window_ms: int = 300_000,
 ) -> int:
     """Continuously stream newly appended events to MongoDB."""
     offset = 0 if from_start else (path.stat().st_size if path.exists() else 0)
@@ -109,6 +157,13 @@ def follow_events(
             except OSError:
                 # Transient file error (e.g. Windows/OneDrive EINVAL); retry next poll.
                 pass
+            if stamp_dashboard and mongo is not None and not dry_run:
+                try:
+                    stamped = stamp_dashboard_updated_at(mongo, window_ms=stamp_window_ms)
+                    if stamped:
+                        print(f"stamped dashboard_updated_at on {stamped} recent docs")
+                except Exception as exc:
+                    print(f"  warning: dashboard stamp failed: {exc.__class__.__name__}: {exc}")
             time.sleep(poll_seconds)
     except KeyboardInterrupt:
         print(f"\nStopped. {verb.capitalize()} {total} events this session.")
@@ -128,6 +183,8 @@ def main() -> int:
         help="Comma-separated event_types to skip (e.g. object_detected,object_distance_estimated,scene_described).",
     )
     parser.add_argument("--dry-run", action="store_true", help="Parse and count events but do not insert into MongoDB.")
+    parser.add_argument("--no-dashboard-stamp", action="store_true", help="Do not stamp dashboard_updated_at on recent docs.")
+    parser.add_argument("--dashboard-window-seconds", type=float, default=300.0, help="Only stamp dashboard_updated_at on docs newer than this many seconds.")
     args = parser.parse_args()
 
     skip_types = {token.strip() for token in args.skip_types.split(",") if token.strip()}
@@ -151,6 +208,8 @@ def main() -> int:
             from_start=args.from_start,
             skip_types=skip_types,
             dry_run=args.dry_run,
+            stamp_dashboard=not args.no_dashboard_stamp,
+            stamp_window_ms=int(args.dashboard_window_seconds * 1000),
         )
 
     # One-shot import.
@@ -177,6 +236,12 @@ def main() -> int:
 
     verb = "Would import" if args.dry_run else "Imported"
     print(f"{verb} {sum(counts.values())} Webots events into MongoDB Atlas: {dict(counts)}")
+    if mongo is not None and not args.dry_run and not args.no_dashboard_stamp:
+        try:
+            stamped = stamp_dashboard_updated_at(mongo, window_ms=int(args.dashboard_window_seconds * 1000))
+            print(f"Stamped dashboard_updated_at on {stamped} recent docs.")
+        except Exception as exc:
+            print(f"Dashboard stamp failed: {exc.__class__.__name__}: {exc}")
     return 0
 
 

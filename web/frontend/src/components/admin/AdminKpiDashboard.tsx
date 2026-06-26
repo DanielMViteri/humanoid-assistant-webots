@@ -20,6 +20,22 @@ function formatMs(value: number | null | undefined) {
   return `${formatNumber(value)} ms`;
 }
 
+const PIPELINE_NODES: { label: string; field: string }[] = [
+  { label: "UI Trigger", field: "ui_triggered_at" },
+  { label: "Backend API", field: "backend_received_at" },
+  { label: "Bridge / Kafka", field: "bridge_received_at" },
+  { label: "Robot Action", field: "robot_action_completed_at" },
+  { label: "MongoDB Update", field: "mongodb_logged_at" },
+  { label: "Dashboard Update", field: "dashboard_updated_at" },
+];
+
+function presenceState(parseability: Record<string, unknown> | undefined, field: string): { cls: string; note: string } {
+  const info = (parseability || {})[field] as { present?: boolean; parseable?: boolean } | undefined;
+  if (info?.parseable) return { cls: "available", note: "OK" };
+  if (info?.present) return { cls: "partial", note: "Present, unparseable" };
+  return { cls: "unavailable", note: "Missing" };
+}
+
 function KpiCard({ kpi, index }: { kpi: AdminKpiDashboardData["top_kpis"][number]; index: number }) {
   const labels = ["PS", "E2E", "DB", "DS", "SR", "RA", "AC", "FE"];
   const valueClass = kpi.status === "Available"
@@ -71,7 +87,10 @@ export function AdminKpiDashboard({
   error = null,
   onRefresh,
   selectedRange = "snapshot",
-  onRangeChange
+  onRangeChange,
+  autoRefresh = true,
+  onAutoRefreshChange,
+  lastUpdated = null
 }: AdminKpiDashboardProps) {
   // TODO: replace snapshot prop with GET /api/admin/kpis once Daniel's FastAPI branch is available.
   // TODO: enable polling once the final frontend fetch strategy is confirmed.
@@ -160,10 +179,17 @@ export function AdminKpiDashboard({
             </select>
           </label>
           <label className="toggle-row">
-            <input type="checkbox" readOnly />
-            <span>Auto refresh UI</span>
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(event) => onAutoRefreshChange?.(event.target.checked)}
+            />
+            <span>Auto refresh (30s)</span>
           </label>
-          <div className="refresh-note">Snapshot view loaded from read-only analysis.</div>
+          <div className="refresh-note">
+            {autoRefresh ? "Live: auto-refreshing every 30s." : "Auto-refresh paused."}
+            {lastUpdated ? ` Last updated ${lastUpdated}.` : ""}
+          </div>
         </section>
 
         <section className="top-kpi-grid" aria-label="Required top KPI cards">
@@ -174,15 +200,18 @@ export function AdminKpiDashboard({
           <article className="panel panel-wide" id="pipeline">
             <div className="panel-heading"><span className="panel-index">1</span><div><h2>Pipeline Health Overview</h2><p>Command pipeline measured from real timestamp coverage.</p></div></div>
             <div className="pipeline-map">
-              {["UI Trigger", "Backend API", "Bridge / Kafka", "Robot Action", "MongoDB Update", "Dashboard Update"].map((stage, index) => (
-                <div className={`pipeline-node ${index > 3 ? "unavailable" : index === 3 ? "available" : "partial"}`} key={stage}>
-                  <span>{stage.slice(0, 2).toUpperCase()}</span>
-                  <strong>{stage}</strong>
-                  <em>{index > 3 ? "Missing timestamps" : index === 3 ? "Started only" : "Partial"}</em>
-                </div>
-              ))}
+              {PIPELINE_NODES.map((node) => {
+                const state = presenceState(data.latency.parseability, node.field);
+                return (
+                  <div className={`pipeline-node ${state.cls}`} key={node.label}>
+                    <span>{node.label.slice(0, 2).toUpperCase()}</span>
+                    <strong>{node.label}</strong>
+                    <em>{state.note}</em>
+                  </div>
+                );
+              })}
             </div>
-            <div className="notice notice-warning">Pipeline is partially measurable. Completion and dashboard timestamps are not parseable in the snapshot.</div>
+            <div className="notice notice-info compact">Each stage reflects whether its timestamp is present and parseable in live MongoDB data.</div>
           </article>
 
           <article className="panel panel-wide" id="latency">
@@ -218,7 +247,7 @@ export function AdminKpiDashboard({
               <div><strong>{formatNumber(data.event_success_rate.failure)}</strong><span>Failure</span></div>
               <div><strong>{formatNumber(data.event_success_rate.unknown)}</strong><span>Unknown / in progress</span></div>
             </div>
-            <div className="notice notice-info compact">Time-series throughput will load from GET /api/admin/kpis once integrated.</div>
+            <div className="notice notice-info compact">Counts reflect terminal status coverage in the latest read-only sample.</div>
           </article>
 
           <article className="panel" id="source-modules">
@@ -264,7 +293,30 @@ export function AdminKpiDashboard({
 
           <article className="panel panel-wide" id="event-logs">
             <div className="panel-heading"><span className="panel-index">7</span><div><h2>Recent Event Logs</h2><p>Redacted rows only; private payload text is not shown.</p></div></div>
-            <div className="empty-state">Recent event rows will load from GET /api/admin/kpis once integrated.</div>
+            {data.recent_events.length === 0 ? (
+              <div className="empty-state">No recent events in the latest sample.</div>
+            ) : (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Time</th><th>Trigger</th><th>Scenario</th><th>Robot Action</th><th>Status</th><th>End-to-End</th><th>MongoDB</th></tr>
+                  </thead>
+                  <tbody>
+                    {data.recent_events.map((event, index) => (
+                      <tr key={event.event_id ? `${event.event_id}-${index}` : index}>
+                        <td>{event.time || "\u2014"}</td>
+                        <td>{event.trigger || "\u2014"}</td>
+                        <td>{event.scenario || "\u2014"}</td>
+                        <td>{event.robot_action || "\u2014"}</td>
+                        <td><span className={`status-chip ${statusClass(String(event.status || ""))}`}>{event.status || "Unknown"}</span></td>
+                        <td>{event.end_to_end_latency || "\u2014"}</td>
+                        <td>{event.mongodb || "\u2014"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </article>
 
           <article className="panel" id="missing-telemetry">
@@ -286,10 +338,12 @@ export function AdminKpiDashboard({
           <article className="panel" id="system-info">
             <div className="panel-heading"><span className="panel-index">9</span><div><h2>System Quick Info</h2><p>Snapshot scope and integration readiness.</p></div></div>
             <div className="quick-info-list">
-              <div><span>MongoDB</span><strong>Connected / Readable</strong></div>
-              <div><span>Kafka</span><strong>Waiting / Not validated</strong></div>
-              <div><span>Redis</span><strong>Waiting / Not validated</strong></div>
-              <div><span>ChromaDB</span><strong>Waiting / Not validated</strong></div>
+              {["MongoDB", "Kafka", "Redis", "ChromaDB"].map((name) => {
+                const svc = services.find((item) => item.name === name);
+                return (
+                  <div key={name}><span>{name}</span><strong>{svc ? svc.status : "Unknown"}</strong></div>
+                );
+              })}
               <div><span>NLP Guardrails</span><strong>{data.nlp_guardrails.note}</strong></div>
               <div><span>Last Snapshot</span><strong>{data.generated_at}</strong></div>
               <div><span>Writes performed</span><strong>{String(data.safety.writes_performed)}</strong></div>

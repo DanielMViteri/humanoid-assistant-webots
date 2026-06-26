@@ -142,4 +142,7 @@ export type AdminKpiDashboardProps = {
   onRefresh?: () => void;
   selectedRange?: string;
   onRangeChange?: (range: string) => void;
+  autoRefresh?: boolean;
+  onAutoRefreshChange?: (enabled: boolean) => void;
+  lastUpdated?: string | null;
 };

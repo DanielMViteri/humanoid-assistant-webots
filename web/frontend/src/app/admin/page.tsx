@@ -9,6 +9,8 @@ import "@/components/admin/admin-kpi-dashboard.css";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
+const REFRESH_INTERVAL_MS = 30_000;
+
 function CenteredNotice({ text }: { text: string }) {
   return (
     <main className="operations-main">
@@ -25,6 +27,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState("snapshot");
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
 
   const isAdmin = user?.role === "admin_provider";
 
@@ -46,6 +50,7 @@ export default function AdminPage() {
     try {
       const res = await api<AdminKpiDashboardData>("/api/admin/kpis");
       setData(res);
+      setLastUpdated(new Date().toLocaleTimeString());
     } catch (e) {
       setError((e as Error).message || "Failed to load admin KPIs.");
     } finally {
@@ -53,11 +58,21 @@ export default function AdminPage() {
     }
   }, []);
 
+  // Initial load once we know the user is an admin.
   useEffect(() => {
     if (!authLoading && isAdmin) {
       void load();
     }
   }, [authLoading, isAdmin, load]);
+
+  // Auto-refresh poll (every 30s) while enabled.
+  useEffect(() => {
+    if (!isAdmin || !autoRefresh) return;
+    const id = setInterval(() => {
+      void load();
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isAdmin, autoRefresh, load]);
 
   if (authLoading) return <CenteredNotice text="Loading…" />;
   if (!user) return <CenteredNotice text="Redirecting to sign in…" />;
@@ -68,11 +83,14 @@ export default function AdminPage() {
   return (
     <AdminKpiDashboard
       data={data as AdminKpiDashboardData}
-      loading={loading}
+      loading={loading && !data}
       error={error}
       onRefresh={load}
       selectedRange={range}
       onRangeChange={setRange}
+      autoRefresh={autoRefresh}
+      onAutoRefreshChange={setAutoRefresh}
+      lastUpdated={lastUpdated}
     />
   );
 }
