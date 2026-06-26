@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v21-heading-offset"
+CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v22-final-approach"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -735,7 +735,13 @@ def navigation_goal_for_command(
 
             if clamped_index < len(route):
                 return route[clamped_index], clamped_index
-            return None, len(route)
+            # Route finished but the cane is not within reach yet: close the final
+            # gap by heading straight at it so target_reached can fire. Without this
+            # the robot has no goal left and just scans in place (circling) ~0.75 m
+            # short of the cane, never triggering retrieval_ready.
+            return approach_goal_for_target(
+                robot, position, active_command.get("target_object"), target_position
+            ), len(route)
 
         if target_visible and target_position is not None:
             return approach_goal_for_target(robot, position, active_command.get("target_object"), target_position), route_index
