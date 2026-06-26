@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
-from .routers import auth, patient, robot
+from .routers import admin, auth, patient, robot
 
 app = FastAPI(title="NESTO Care API", version="0.1.0")
 
@@ -22,6 +22,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(patient.router)
 app.include_router(robot.router)
+app.include_router(admin.router)
 
 
 @app.get("/api/health")

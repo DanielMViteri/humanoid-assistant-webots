@@ -766,12 +766,41 @@ def admin_alerts(limit=40) -> list[dict[str, Any]]:
     ]
 
 
+def _persist_dashboard_updated_at(collection: str, doc_id: Any, value: int) -> None:
+    """Persist dashboard_updated_at (top-level + payload mirror) for one event.
+
+    This is the real time the admin/provider telemetry output was generated for
+    this record (telemetry schema v1). Persisting it lets the read-only KPI
+    analysis compute the MongoDB->Dashboard and End-to-End latency segments.
+    Best-effort and write-once: telemetry formatting must never crash the
+    dashboard, and we do not overwrite an existing value so the measured latency
+    stays stable across refreshes.
+    """
+    if doc_id is None:
+        return
+    try:
+        _db()._db[collection].update_one(
+            {"_id": doc_id},
+            {"$set": {"dashboard_updated_at": int(value), "payload.dashboard_updated_at": int(value)}},
+        )
+    except Exception:
+        pass
+
+
 def admin_telemetry(limit=80) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     dashboard_updated_at = int(time.time() * 1000)
     for collection in ADMIN_EVENT_COLLECTIONS:
         for doc in _admin_docs(collection, limit=limit):
             payload = _admin_payload(doc)
+            if _admin_epoch_ms(
+                doc.get("dashboard_updated_at")
+                if doc.get("dashboard_updated_at") not in (None, "")
+                else payload.get("dashboard_updated_at")
+            ) is None:
+                _persist_dashboard_updated_at(collection, doc.get("_id"), dashboard_updated_at)
+                doc["dashboard_updated_at"] = dashboard_updated_at
+                payload["dashboard_updated_at"] = dashboard_updated_at
             timing_values = {
                 field: _admin_epoch_ms(doc.get(field) if doc.get(field) not in (None, "") else payload.get(field))
                 for field in TELEMETRY_TIMING_FIELDS
