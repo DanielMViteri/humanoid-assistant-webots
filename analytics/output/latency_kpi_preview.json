@@ -1,0 +1,132 @@
+{
+  "generated_at": "2026-06-25T22:19:54.559949+00:00",
+  "database": "humanoid_assistant",
+  "daniel_filter_total_matches": 79,
+  "latency_metrics": {
+    "ui_to_backend": {
+      "sample_count": 93,
+      "min_ms": 6.0,
+      "median_ms": 23.0,
+      "average_ms": 22.452,
+      "p95_ms": 23.0,
+      "max_ms": 30.0,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26705,
+      "collections_with_samples": [
+        "conversation_events",
+        "mood_events",
+        "robot_status",
+        "scenario_events"
+      ],
+      "start_field": "ui_triggered_at",
+      "end_field": "backend_received_at",
+      "status": "Partial",
+      "reason": "Valid samples exist, but field coverage is incomplete or some values are invalid/negative."
+    },
+    "backend_to_bridge": {
+      "sample_count": 93,
+      "min_ms": 428.0,
+      "median_ms": 1803.0,
+      "average_ms": 1855.935,
+      "p95_ms": 2668.0,
+      "max_ms": 3138.0,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26705,
+      "collections_with_samples": [
+        "conversation_events",
+        "mood_events",
+        "robot_status",
+        "scenario_events"
+      ],
+      "start_field": "backend_received_at",
+      "end_field": "bridge_received_at",
+      "status": "Partial",
+      "reason": "Valid samples exist, but field coverage is incomplete or some values are invalid/negative."
+    },
+    "bridge_to_robot_start": {
+      "sample_count": 78,
+      "min_ms": 45.0,
+      "median_ms": 45.0,
+      "average_ms": 45.0,
+      "p95_ms": 45.0,
+      "max_ms": 45.0,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26720,
+      "collections_with_samples": [
+        "robot_status"
+      ],
+      "start_field": "bridge_received_at",
+      "end_field": "robot_action_started_at",
+      "status": "Partial",
+      "reason": "Valid samples exist, but field coverage is incomplete or some values are invalid/negative."
+    },
+    "robot_action_duration": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "robot_action_started_at",
+      "end_field": "robot_action_completed_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    },
+    "robot_to_mongodb": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "robot_action_completed_at",
+      "end_field": "mongodb_logged_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    },
+    "mongodb_to_dashboard": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "mongodb_logged_at",
+      "end_field": "dashboard_updated_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    },
+    "end_to_end": {
+      "sample_count": 0,
+      "min_ms": null,
+      "median_ms": null,
+      "average_ms": null,
+      "p95_ms": null,
+      "max_ms": null,
+      "invalid_negative_duration_count": 0,
+      "invalid_parse_count": 0,
+      "missing_field_count": 26798,
+      "collections_with_samples": [],
+      "start_field": "ui_triggered_at",
+      "end_field": "dashboard_updated_at",
+      "status": "Unavailable",
+      "reason": "No valid documents contain both required parseable timestamps."
+    }
+  },
+  "missing_field_count_note": "Missing-field counts include documents where a required timestamp key is absent or present with null/non-parseable value; null details are in telemetry_field_check.global_timestamp_null_counts."
+}

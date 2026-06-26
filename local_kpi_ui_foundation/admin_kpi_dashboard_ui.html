@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NESTO Care Operations - Admin KPI Dashboard</title>
+    <link rel="stylesheet" href="./admin-kpi-dashboard.css?v=3" />
+  </head>
+  <body>
+    <div class="operations-shell">
+      <aside class="operations-sidebar" aria-label="NESTO Care Operations navigation">
+        <div class="brand-lockup">
+          <div class="brand-wordmark">NESTO<span aria-hidden="true">♡</span></div>
+          <p>Care Operations</p>
+        </div>
+
+        <div class="sidebar-mascot" aria-label="NESTO robot mascot">
+          <div class="mascot-head">
+            <div class="mascot-screen">
+              <span></span>
+              <span></span>
+            </div>
+          </div>
+          <div class="mascot-arm mascot-arm-left"></div>
+          <div class="mascot-arm mascot-arm-right"></div>
+          <div class="mascot-body">
+            <span></span>
+          </div>
+          <div class="mascot-base"></div>
+        </div>
+
+        <div class="sidebar-copy">
+          <strong>Caring with Intelligence.</strong>
+          <span>Supporting Lives.</span>
+        </div>
+
+        <nav class="side-nav" aria-label="Admin dashboard sections">
+          <a class="nav-link" href="#overview" data-section-link="overview">
+            <span class="nav-icon">OV</span>
+            <span>Overview</span>
+          </a>
+          <a class="nav-link" href="#source-modules" data-section-link="source-modules">
+            <span class="nav-icon">RF</span>
+            <span>Robot Fleet</span>
+          </a>
+          <a class="nav-link" href="#source-modules" data-section-link="source-modules">
+            <span class="nav-icon">PT</span>
+            <span>Patients</span>
+          </a>
+          <a class="nav-link" href="#source-modules" data-section-link="source-modules">
+            <span class="nav-icon">GC</span>
+            <span>Guardian / Caregivers</span>
+          </a>
+          <a class="nav-link" href="#events" data-section-link="events">
+            <span class="nav-icon">AL</span>
+            <span>Alerts</span>
+          </a>
+          <a class="nav-link" href="#event-logs" data-section-link="event-logs">
+            <span class="nav-icon">TL</span>
+            <span>Telemetry & Logs</span>
+          </a>
+          <a class="nav-link active" href="#overview" data-section-link="overview">
+            <span class="nav-icon">KP</span>
+            <span>KPI Dashboard</span>
+            <span class="new-badge">NEW</span>
+          </a>
+          <a class="nav-link" href="#missing-telemetry" data-section-link="missing-telemetry">
+            <span class="nav-icon">RP</span>
+            <span>Reports</span>
+          </a>
+          <a class="nav-link" href="#system-info" data-section-link="system-info">
+            <span class="nav-icon">SH</span>
+            <span>System Health</span>
+          </a>
+          <a class="nav-link" href="#system-info" data-section-link="system-info">
+            <span class="nav-icon">ST</span>
+            <span>Settings</span>
+          </a>
+        </nav>
+
+        <div class="admin-profile">
+          <div class="profile-photo" aria-hidden="true">AI</div>
+          <div>
+            <strong>Dr. Ananya Iyer</strong>
+            <span>System Administrator</span>
+          </div>
+        </div>
+      </aside>
+
+      <main class="operations-main">
+        <header class="operations-header" id="overview">
+          <div class="header-title">
+            <span class="section-kicker">Admin KPI Dashboard</span>
+            <h1>NESTO Care Operations</h1>
+            <p>Real-time admin KPI dashboard for NESTO robotic care ecosystem</p>
+          </div>
+
+          <div class="header-actions">
+            <div class="status-chip-grid" data-service-chips aria-label="Service status chips"></div>
+            <div class="time-card">
+              <span data-current-date>Jun 26, 2026</span>
+              <strong data-current-time>--:-- --</strong>
+            </div>
+            <button class="icon-button" type="button" data-refresh-button aria-label="Refresh KPI snapshot">
+              <span aria-hidden="true">↻</span>
+            </button>
+          </div>
+        </header>
+
+        <section class="control-panel" aria-label="Dashboard controls">
+          <label class="control-item">
+            <span>Time range</span>
+            <select data-range-select>
+              <option value="10m">Last 10 minutes</option>
+              <option value="24h">Last 24 hours</option>
+              <option value="snapshot" selected>Snapshot</option>
+            </select>
+          </label>
+          <label class="toggle-row">
+            <input type="checkbox" data-auto-refresh />
+            <span>Auto refresh UI</span>
+          </label>
+          <div class="refresh-note" data-refresh-note>
+            Snapshot view loaded from embedded read-only analysis.
+          </div>
+          <div class="load-warning" data-load-warning hidden>
+            Snapshot file could not be loaded. Start local server or use embedded snapshot.
+          </div>
+        </section>
+
+        <section class="top-kpi-grid" data-kpi-cards aria-label="Required top KPI cards"></section>
+
+        <section class="dashboard-grid">
+          <article class="panel panel-wide" id="pipeline">
+            <div class="panel-heading">
+              <span class="panel-index">1</span>
+              <div>
+                <h2>Pipeline Health Overview</h2>
+                <p>Command pipeline measured from real timestamp coverage.</p>
+              </div>
+            </div>
+            <div class="pipeline-map" aria-label="Pipeline health stages">
+              <div class="pipeline-node partial">
+                <span>UI</span>
+                <strong>UI Trigger</strong>
+                <em>Partial</em>
+              </div>
+              <div class="pipeline-arrow">→</div>
+              <div class="pipeline-node partial">
+                <span>API</span>
+                <strong>Backend API</strong>
+                <em>Partial</em>
+              </div>
+              <div class="pipeline-arrow">→</div>
+              <div class="pipeline-node partial">
+                <span>BR</span>
+                <strong>Bridge / Kafka</strong>
+                <em>Partial</em>
+              </div>
+              <div class="pipeline-arrow">→</div>
+              <div class="pipeline-node available">
+                <span>RB</span>
+                <strong>Robot Action</strong>
+                <em>Started only</em>
+              </div>
+              <div class="pipeline-arrow">→</div>
+              <div class="pipeline-node unavailable">
+                <span>DB</span>
+                <strong>MongoDB Update</strong>
+                <em>Missing completion</em>
+              </div>
+              <div class="pipeline-arrow">→</div>
+              <div class="pipeline-node unavailable">
+                <span>DS</span>
+                <strong>Dashboard Update</strong>
+                <em>Missing dashboard_updated_at</em>
+              </div>
+            </div>
+            <div class="notice notice-warning">
+              Pipeline is partially measurable. Completion and dashboard timestamps are not parseable in the snapshot.
+            </div>
+          </article>
+
+          <article class="panel panel-wide" id="latency">
+            <div class="panel-heading">
+              <span class="panel-index">2</span>
+              <div>
+                <h2>Latency KPIs</h2>
+                <p>Milliseconds only where timestamp pairs exist and parse cleanly.</p>
+              </div>
+            </div>
+            <div class="table-toolbar">
+              <span>Unavailable metrics are intentionally left blank.</span>
+              <span class="pill muted">No synthetic timing</span>
+            </div>
+            <div class="table-wrap">
+              <table aria-label="Latency KPI table">
+                <thead>
+                  <tr>
+                    <th>Stage</th>
+                    <th>Status</th>
+                    <th>Samples</th>
+                    <th>Median</th>
+                    <th>Average</th>
+                    <th>P95</th>
+                    <th>Negative</th>
+                    <th>Reason</th>
+                  </tr>
+                </thead>
+                <tbody data-latency-body></tbody>
+              </table>
+            </div>
+            <div class="notice notice-info">
+              Full latency requires robot_action_completed_at and dashboard_updated_at.
+            </div>
+          </article>
+
+          <article class="panel" id="events">
+            <div class="panel-heading">
+              <span class="panel-index">3</span>
+              <div>
+                <h2>Event Throughput and Success Rate</h2>
+                <p>Terminal status coverage from the read-only sample.</p>
+              </div>
+            </div>
+            <section class="subpanel">
+              <h3>Event Throughput Snapshot</h3>
+              <div class="throughput-row">
+                <div>
+                  <strong data-event-total>1,036</strong>
+                  <span>Total Events / sampled statuses</span>
+                </div>
+                <div>
+                  <strong data-event-success>13</strong>
+                  <span>Success</span>
+                </div>
+                <div>
+                  <strong data-event-failure>0</strong>
+                  <span>Failure</span>
+                </div>
+                <div>
+                  <strong data-event-unknown>1,023</strong>
+                  <span>Unknown / in progress</span>
+                </div>
+              </div>
+              <div class="notice notice-info compact">
+                Time-series throughput will load from GET /api/admin/kpis once integrated.
+              </div>
+            </section>
+            <section class="subpanel">
+              <h3>Events by Type</h3>
+              <div class="status-bars" data-status-bars></div>
+            </section>
+          </article>
+
+          <article class="panel" id="source-modules">
+            <div class="panel-heading">
+              <span class="panel-index">4</span>
+              <div>
+                <h2>Events by Source Module</h2>
+                <p>Collection volumes from humanoid_assistant.</p>
+              </div>
+            </div>
+            <div class="source-bars" data-source-bars></div>
+          </article>
+
+          <article class="panel" id="robot-actions">
+            <div class="panel-heading">
+              <span class="panel-index">5</span>
+              <div>
+                <h2>Robot Action Status</h2>
+                <p>Latest available command details remain partial.</p>
+              </div>
+            </div>
+            <div class="robot-status-card">
+              <div class="robot-mini" aria-hidden="true">
+                <span></span>
+              </div>
+              <div>
+                <span>Last Robot Action</span>
+                <strong data-last-action>robot_command_sent / cane</strong>
+                <p data-action-note>Latest robot action details are incomplete in the snapshot.</p>
+              </div>
+            </div>
+            <div class="metric-list">
+              <div><span>Duration</span><strong>Unavailable</strong></div>
+              <div><span>Object detection result</span><strong>Unavailable</strong></div>
+              <div><span>Webots status</span><strong>Not validated in this snapshot</strong></div>
+              <div><span>Terminal failures</span><strong data-status-failed>0</strong></div>
+            </div>
+          </article>
+
+          <article class="panel panel-wide" id="mongo-sync">
+            <div class="panel-heading">
+              <span class="panel-index">6</span>
+              <div>
+                <h2>MongoDB Sync Monitor</h2>
+                <p>Sortable collection coverage and Daniel filter matches.</p>
+              </div>
+            </div>
+            <div class="table-toolbar">
+              <label>
+                Collection status filter
+                <select data-collection-filter>
+                  <option value="All">All</option>
+                  <option value="Active">Active</option>
+                  <option value="Partial">Partial</option>
+                  <option value="No telemetry">No telemetry</option>
+                </select>
+              </label>
+              <span class="pill" data-collection-count>11 collections</span>
+            </div>
+            <div class="table-wrap">
+              <table class="sortable-table" aria-label="MongoDB collections monitor">
+                <thead>
+                  <tr>
+                    <th><button type="button" data-sort-key="collection">Collection</button></th>
+                    <th><button type="button" data-sort-key="documents">Documents</button></th>
+                    <th><button type="button" data-sort-key="daniel_filter_matches">Daniel Filter Matches</button></th>
+                    <th><button type="button" data-sort-key="all_required_timestamp_fields_present">All Required Timestamp Fields Present</button></th>
+                    <th><button type="button" data-sort-key="status">Status</button></th>
+                    <th>Last Update</th>
+                    <th>Notes</th>
+                  </tr>
+                </thead>
+                <tbody data-sync-body></tbody>
+              </table>
+            </div>
+            <div class="sync-summary">
+              <div><strong data-total-documents>26,798</strong><span>Total Documents</span></div>
+              <div><strong data-filter-matches>79</strong><span>Daniel Filter Matches</span></div>
+              <div><strong data-collections-with-data>11 / 11</strong><span>Collections with Data</span></div>
+              <div><strong data-main-blockers>robot_action_completed_at, dashboard_updated_at</strong><span>Main Latency Blockers</span></div>
+            </div>
+          </article>
+
+          <article class="panel panel-wide" id="event-logs">
+            <div class="panel-heading">
+              <span class="panel-index">7</span>
+              <div>
+                <h2>Recent Event Logs</h2>
+                <p>Redacted rows only; private payload text is not shown.</p>
+              </div>
+            </div>
+            <div class="table-toolbar">
+              <label>
+                Recent logs search
+                <input type="search" data-log-search placeholder="Search redacted rows" />
+              </label>
+              <span class="pill muted" data-log-count>Waiting for route integration</span>
+            </div>
+            <div class="table-wrap">
+              <table aria-label="Recent event logs">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Event ID</th>
+                    <th>Trigger</th>
+                    <th>Scenario</th>
+                    <th>Robot Action</th>
+                    <th>Status</th>
+                    <th>E2E Latency</th>
+                    <th>MongoDB</th>
+                  </tr>
+                </thead>
+                <tbody data-recent-events></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel" id="missing-telemetry">
+            <div class="panel-heading">
+              <span class="panel-index">8</span>
+              <div>
+                <h2>Missing Telemetry Fields</h2>
+                <p>Current blockers for complete KPI calculation.</p>
+              </div>
+            </div>
+            <button class="expand-button" type="button" data-expand-missing aria-expanded="true">
+              Hide missing telemetry details
+            </button>
+            <div class="missing-details" data-missing-details>
+              <div data-missing-fields></div>
+              <h3>Blocked KPI calculations</h3>
+              <ul data-blocked-kpis></ul>
+            </div>
+            <div class="notice notice-warning compact">
+              Daniel needs to complete these fields for full latency calculations.
+            </div>
+          </article>
+
+          <article class="panel" id="system-info">
+            <div class="panel-heading">
+              <span class="panel-index">9</span>
+              <div>
+                <h2>System Quick Info</h2>
+                <p>Snapshot scope and integration readiness.</p>
+              </div>
+            </div>
+            <div class="quick-info-list" data-system-info></div>
+          </article>
+        </section>
+
+        <footer class="dashboard-footer">
+          <span>All data shown is from read-only MongoDB analysis snapshots.</span>
+          <strong>No writes performed.</strong>
+          <span data-render-stamp>Rendered from embedded snapshot.</span>
+        </footer>
+      </main>
+    </div>
+
+    <script>
+      window.ADMIN_KPI_SNAPSHOT = {
+        "source": "real_read_only_analysis_snapshot",
+        "database": "humanoid_assistant",
+        "generated_from": "local_mongodb_kpi_analysis",
+        "generated_at": "2026-06-25T22:19:54.559949+00:00",
+        "daniel_filter_matches": 79,
+        "total_documents": 26798,
+        "timestamp_shape": { "top_level_fields_found": true, "nested_timestamps_found": false },
+        "pipeline_status": {
+          "status": "Partial",
+          "detail": "Inferred from timestamp coverage and event freshness; live service state is not separately persisted."
+        },
+        "top_kpis": [
+          { "id": "pipeline_status", "label": "Pipeline Status", "status": "Partial", "value": "Partial", "detail": "Stale / partially measurable", "target": "pipeline" },
+          { "id": "end_to_end_latency", "label": "End-to-End Latency", "status": "Unavailable", "value": "Unavailable", "detail": "Missing timestamp values", "target": "latency" },
+          { "id": "mongodb_write_latency", "label": "MongoDB Write Latency", "status": "Unavailable", "value": "Unavailable", "detail": "Missing robot_action_completed_at", "target": "latency" },
+          { "id": "dashboard_refresh_latency", "label": "Dashboard Refresh Latency", "status": "Unavailable", "value": "Unavailable", "detail": "Missing dashboard_updated_at", "target": "latency" },
+          { "id": "event_success_rate", "label": "Event Success Rate", "status": "Partial", "value": "Partial", "detail": "13 success, 0 failure, 1,023 unknown", "target": "events" },
+          { "id": "last_robot_action", "label": "Last Robot Action", "status": "Partial", "value": "Partial", "detail": "robot_command_sent / cane", "target": "robot-actions" },
+          { "id": "active_collections", "label": "Active Collections", "status": "Available", "value": "11 / 11", "detail": "Collections with data", "target": "mongo-sync" },
+          { "id": "failed_events", "label": "Failed Events", "status": "Partial", "value": "0", "detail": "No terminal failures detected", "target": "events" }
+        ],
+        "services": [
+          { "name": "MongoDB", "status": "Connected", "detail": "Readable" },
+          { "name": "Kafka", "status": "Waiting", "detail": "Not validated in this UI foundation" },
+          { "name": "Redis", "status": "Waiting", "detail": "Not validated in this UI foundation" },
+          { "name": "ChromaDB", "status": "Waiting", "detail": "Not validated in this UI foundation" }
+        ],
+        "latency": {
+          "segments": [
+            { "stage": "UI -> Backend", "status": "Partial", "samples": 93, "median_ms": 23, "average_ms": 22.452, "p95_ms": 23, "negative": 0, "note": "Real timestamp pair available" },
+            { "stage": "Backend -> Bridge", "status": "Partial", "samples": 93, "median_ms": 1803, "average_ms": 1855.935, "p95_ms": 2668, "negative": 0, "note": "Real timestamp pair available" },
+            { "stage": "Bridge -> Robot Start", "status": "Partial", "samples": 78, "median_ms": 45, "average_ms": 45, "p95_ms": 45, "negative": 0, "note": "Real timestamp pair available" },
+            { "stage": "Robot Action Duration", "status": "Unavailable", "samples": null, "median_ms": null, "average_ms": null, "p95_ms": null, "negative": 0, "note": "Missing robot_action_completed_at" },
+            { "stage": "Robot -> MongoDB", "status": "Unavailable", "samples": null, "median_ms": null, "average_ms": null, "p95_ms": null, "negative": 0, "note": "Missing robot_action_completed_at" },
+            { "stage": "MongoDB -> Dashboard", "status": "Unavailable", "samples": null, "median_ms": null, "average_ms": null, "p95_ms": null, "negative": 0, "note": "Missing dashboard_updated_at" },
+            { "stage": "End-to-End", "status": "Unavailable", "samples": null, "median_ms": null, "average_ms": null, "p95_ms": null, "negative": 0, "note": "Missing complete timestamp chain" }
+          ],
+          "missing_fields": ["robot_action_completed_at", "dashboard_updated_at"]
+        },
+        "event_success_rate": {
+          "status": "Partial",
+          "success": 13,
+          "failure": 0,
+          "unknown": 1023,
+          "total": 1036,
+          "note": "Unknown events are not terminal success or failure, so success rate is partial."
+        },
+        "last_robot_action": {
+          "status": "Partial",
+          "action": "robot_command_sent",
+          "object": "cane",
+          "location": null,
+          "duration_ms": null,
+          "note": "Latest robot action details are incomplete in the snapshot."
+        },
+        "active_collections": {
+          "status": "Available",
+          "value": "11 / 11",
+          "collections_with_data": 11,
+          "collections_inspected": 11
+        },
+        "failed_events": {
+          "status": "Partial",
+          "terminal_failures_detected": 0,
+          "note": "0 terminal failures detected in sampled data; status data is unknown-heavy."
+        },
+        "mongo_sync": {
+          "collections": [
+            { "collection": "alerts", "documents": 249, "daniel_filter_matches": 1, "all_required_timestamp_fields_present": 11, "status": "Active", "last_update": "8 sec ago", "notes": "Contains Daniel-filter command telemetry." },
+            { "collection": "auth_users", "documents": 13, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 0, "status": "No telemetry", "last_update": "—", "notes": "Account collection, not command telemetry." },
+            { "collection": "caregiver_notes", "documents": 9, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 0, "status": "No telemetry", "last_update": "—", "notes": "Care note collection, not command telemetry." },
+            { "collection": "conversation_events", "documents": 273, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 2, "status": "Partial", "last_update": "—", "notes": "Some timestamp-complete documents." },
+            { "collection": "environment_events", "documents": 20972, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 306, "status": "Partial", "last_update": "18 sec ago", "notes": "Large collection with partial timestamp coverage." },
+            { "collection": "medicine_events", "documents": 21, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 0, "status": "No telemetry", "last_update": "—", "notes": "No command timestamp chain found." },
+            { "collection": "mood_events", "documents": 96, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 1, "status": "Partial", "last_update": "—", "notes": "One timestamp-complete document." },
+            { "collection": "robot_status", "documents": 4770, "daniel_filter_matches": 78, "all_required_timestamp_fields_present": 82, "status": "Active", "last_update": "5 sec ago", "notes": "Primary command telemetry collection." },
+            { "collection": "scenario_events", "documents": 359, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 6, "status": "Partial", "last_update": "—", "notes": "Some timestamp-complete documents." },
+            { "collection": "schedule_events", "documents": 10, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 0, "status": "No telemetry", "last_update": "—", "notes": "No command timestamp chain found." },
+            { "collection": "user_profiles", "documents": 26, "daniel_filter_matches": 0, "all_required_timestamp_fields_present": 0, "status": "No telemetry", "last_update": "—", "notes": "Profile collection, not command telemetry." }
+          ],
+          "summary": {
+            "total_documents": 26798,
+            "daniel_filter_matches": 79,
+            "collections_with_data": 11,
+            "collections_inspected": 11,
+            "main_latency_blockers": ["robot_action_completed_at", "dashboard_updated_at"]
+          }
+        },
+        "recent_events": [],
+        "missing_telemetry_fields": [
+          { "field": "robot_action_completed_at", "state": "present but null / not parseable", "blocked_kpis": ["Robot Action Duration", "Robot -> MongoDB", "MongoDB Write Latency"] },
+          { "field": "dashboard_updated_at", "state": "present but null / not parseable", "blocked_kpis": ["MongoDB -> Dashboard", "End-to-End Latency", "Dashboard Refresh Latency"] }
+        ],
+        "nlp_guardrails": {
+          "status": "documented_not_telemetry_validated",
+          "note": "Documented task-focused instructions, not telemetry-validated."
+        },
+        "safety": {
+          "read_only": true,
+          "writes_performed": false,
+          "credentials_redacted": true
+        }
+      };
+    </script>
+    <script src="./admin-kpi-dashboard.js?v=3"></script>
+  </body>
+</html>

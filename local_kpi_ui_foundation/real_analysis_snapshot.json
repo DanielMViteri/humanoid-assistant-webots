@@ -1,0 +1,402 @@
+{
+  "source": "real_read_only_analysis_snapshot",
+  "database": "humanoid_assistant",
+  "generated_from": "local_mongodb_kpi_analysis",
+  "generated_at": "2026-06-25T22:19:54.559949+00:00",
+  "daniel_filter": {
+    "payload.active_command_id": {
+      "$ne": null
+    },
+    "ui_triggered_at": {
+      "$exists": true
+    }
+  },
+  "daniel_filter_matches": 79,
+  "total_documents": 26798,
+  "timestamp_shape": {
+    "top_level_fields_found": true,
+    "nested_timestamps_found": false
+  },
+  "pipeline_status": {
+    "status": "Partial",
+    "detail": "Inferred from timestamp coverage and event freshness; live service state is not separately persisted."
+  },
+  "timestamp_fields": {
+    "ui_triggered_at": {
+      "shape": "top_level",
+      "parseable_type": "unix_milliseconds",
+      "coverage": "partial",
+      "top_level_count": 414,
+      "nested_count": 0,
+      "null_count": 321
+    },
+    "backend_received_at": {
+      "shape": "top_level",
+      "parseable_type": "unix_milliseconds",
+      "coverage": "partial",
+      "top_level_count": 414,
+      "nested_count": 0,
+      "null_count": 321
+    },
+    "bridge_received_at": {
+      "shape": "top_level",
+      "parseable_type": "unix_milliseconds",
+      "coverage": "partial",
+      "top_level_count": 414,
+      "nested_count": 0,
+      "null_count": 321
+    },
+    "robot_action_started_at": {
+      "shape": "top_level",
+      "parseable_type": "unix_milliseconds",
+      "coverage": "partial",
+      "top_level_count": 408,
+      "nested_count": 0,
+      "null_count": 330
+    },
+    "robot_action_completed_at": {
+      "shape": "top_level",
+      "parseable_type": "none",
+      "coverage": "blocked",
+      "top_level_count": 408,
+      "nested_count": 0,
+      "null_count": 408
+    },
+    "mongodb_logged_at": {
+      "shape": "top_level",
+      "parseable_type": "unix_milliseconds",
+      "coverage": "partial",
+      "top_level_count": 2897,
+      "nested_count": 0,
+      "null_count": 0
+    },
+    "dashboard_updated_at": {
+      "shape": "top_level",
+      "parseable_type": "none",
+      "coverage": "blocked",
+      "top_level_count": 408,
+      "nested_count": 0,
+      "null_count": 408
+    }
+  },
+  "top_kpis": [
+    {
+      "id": "pipeline_status",
+      "label": "Pipeline Status",
+      "status": "Partial",
+      "value": "Partial",
+      "detail": "Stale / partially measurable"
+    },
+    {
+      "id": "end_to_end_latency",
+      "label": "End-to-End Latency",
+      "status": "Unavailable",
+      "value": "Unavailable",
+      "detail": "Missing timestamp values"
+    },
+    {
+      "id": "mongodb_write_latency",
+      "label": "MongoDB Write Latency",
+      "status": "Unavailable",
+      "value": "Unavailable",
+      "detail": "Missing robot_action_completed_at"
+    },
+    {
+      "id": "dashboard_refresh_latency",
+      "label": "Dashboard Refresh Latency",
+      "status": "Unavailable",
+      "value": "Unavailable",
+      "detail": "Missing dashboard_updated_at"
+    },
+    {
+      "id": "event_success_rate",
+      "label": "Event Success Rate",
+      "status": "Partial",
+      "value": "Partial",
+      "detail": "13 success, 0 failure, 1023 unknown"
+    },
+    {
+      "id": "last_robot_action",
+      "label": "Last Robot Action",
+      "status": "Partial",
+      "value": "Partial",
+      "detail": "robot_command_sent / cane"
+    },
+    {
+      "id": "active_collections",
+      "label": "Active Collections",
+      "status": "Available",
+      "value": "11 / 11",
+      "detail": "Collections with data"
+    },
+    {
+      "id": "failed_events",
+      "label": "Failed Events",
+      "status": "Partial",
+      "value": "0",
+      "detail": "0 terminal failures detected in sampled data"
+    }
+  ],
+  "services": [
+    {
+      "name": "MongoDB",
+      "status": "Connected",
+      "detail": "Readable"
+    },
+    {
+      "name": "Kafka",
+      "status": "Waiting",
+      "detail": "Not validated in this UI foundation"
+    },
+    {
+      "name": "Redis",
+      "status": "Waiting",
+      "detail": "Not validated in this UI foundation"
+    },
+    {
+      "name": "ChromaDB",
+      "status": "Waiting",
+      "detail": "Not validated in this UI foundation"
+    }
+  ],
+  "latency": {
+    "segments": [
+      {
+        "stage": "UI -> Backend",
+        "status": "Partial",
+        "samples": 93,
+        "median_ms": 23,
+        "average_ms": 22.452,
+        "p95_ms": 23,
+        "negative": 0,
+        "note": "Real timestamp pair available"
+      },
+      {
+        "stage": "Backend -> Bridge",
+        "status": "Partial",
+        "samples": 93,
+        "median_ms": 1803,
+        "average_ms": 1855.935,
+        "p95_ms": 2668,
+        "negative": 0,
+        "note": "Real timestamp pair available"
+      },
+      {
+        "stage": "Bridge -> Robot Start",
+        "status": "Partial",
+        "samples": 78,
+        "median_ms": 45,
+        "average_ms": 45,
+        "p95_ms": 45,
+        "negative": 0,
+        "note": "Real timestamp pair available"
+      },
+      {
+        "stage": "Robot Action Duration",
+        "status": "Unavailable",
+        "samples": null,
+        "median_ms": null,
+        "average_ms": null,
+        "p95_ms": null,
+        "negative": 0,
+        "note": "Missing robot_action_completed_at"
+      },
+      {
+        "stage": "Robot -> MongoDB",
+        "status": "Unavailable",
+        "samples": null,
+        "median_ms": null,
+        "average_ms": null,
+        "p95_ms": null,
+        "negative": 0,
+        "note": "Missing robot_action_completed_at"
+      },
+      {
+        "stage": "MongoDB -> Dashboard",
+        "status": "Unavailable",
+        "samples": null,
+        "median_ms": null,
+        "average_ms": null,
+        "p95_ms": null,
+        "negative": 0,
+        "note": "Missing dashboard_updated_at"
+      },
+      {
+        "stage": "End-to-End",
+        "status": "Unavailable",
+        "samples": null,
+        "median_ms": null,
+        "average_ms": null,
+        "p95_ms": null,
+        "negative": 0,
+        "note": "Missing complete timestamp chain"
+      }
+    ],
+    "missing_fields": [
+      "robot_action_completed_at",
+      "dashboard_updated_at"
+    ],
+    "notes": [
+      "Full latency calculation waits on completion and dashboard timestamps."
+    ]
+  },
+  "event_success_rate": {
+    "status": "Partial",
+    "success": 13,
+    "failure": 0,
+    "unknown": 1023,
+    "total": 1036,
+    "note": "Unknown events are not terminal success or failure, so success rate is partial."
+  },
+  "last_robot_action": {
+    "status": "Partial",
+    "action": "robot_command_sent",
+    "object": "cane",
+    "location": null,
+    "duration_ms": null,
+    "note": "Latest robot action details are incomplete in the snapshot."
+  },
+  "active_collections": {
+    "status": "Available",
+    "value": "11 / 11",
+    "collections_with_data": 11,
+    "collections_inspected": 11
+  },
+  "failed_events": {
+    "status": "Partial",
+    "terminal_failures_detected": 0,
+    "note": "0 terminal failures detected in sampled data; status data is unknown-heavy."
+  },
+  "mongo_sync": {
+    "collections": [
+      {
+        "collection": "alerts",
+        "documents": 249,
+        "daniel_filter_matches": 1,
+        "all_required_timestamp_fields_present": 11,
+        "status": "Active",
+        "notes": "Contains Daniel-filter command telemetry."
+      },
+      {
+        "collection": "auth_users",
+        "documents": 13,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "No telemetry",
+        "notes": "Account collection, not command telemetry."
+      },
+      {
+        "collection": "caregiver_notes",
+        "documents": 9,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "No telemetry",
+        "notes": "Care note collection, not command telemetry."
+      },
+      {
+        "collection": "conversation_events",
+        "documents": 273,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 2,
+        "status": "Partial",
+        "notes": "Some timestamp-complete documents."
+      },
+      {
+        "collection": "environment_events",
+        "documents": 20972,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 306,
+        "status": "Partial",
+        "notes": "Large collection with partial timestamp coverage."
+      },
+      {
+        "collection": "medicine_events",
+        "documents": 21,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "No telemetry",
+        "notes": "No command timestamp chain found."
+      },
+      {
+        "collection": "mood_events",
+        "documents": 96,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 1,
+        "status": "Partial",
+        "notes": "One timestamp-complete document."
+      },
+      {
+        "collection": "robot_status",
+        "documents": 4770,
+        "daniel_filter_matches": 78,
+        "all_required_timestamp_fields_present": 82,
+        "status": "Active",
+        "notes": "Primary command telemetry collection."
+      },
+      {
+        "collection": "scenario_events",
+        "documents": 359,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 6,
+        "status": "Partial",
+        "notes": "Some timestamp-complete documents."
+      },
+      {
+        "collection": "schedule_events",
+        "documents": 10,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "No telemetry",
+        "notes": "No command timestamp chain found."
+      },
+      {
+        "collection": "user_profiles",
+        "documents": 26,
+        "daniel_filter_matches": 0,
+        "all_required_timestamp_fields_present": 0,
+        "status": "No telemetry",
+        "notes": "Profile collection, not command telemetry."
+      }
+    ],
+    "summary": {
+      "total_documents": 26798,
+      "daniel_filter_matches": 79,
+      "collections_with_data": 11,
+      "collections_inspected": 11,
+      "main_latency_blockers": [
+        "robot_action_completed_at",
+        "dashboard_updated_at"
+      ]
+    }
+  },
+  "recent_events": [],
+  "missing_telemetry_fields": [
+    {
+      "field": "robot_action_completed_at",
+      "state": "present but null / not parseable",
+      "blocked_kpis": [
+        "Robot Action Duration",
+        "Robot -> MongoDB",
+        "MongoDB Write Latency"
+      ]
+    },
+    {
+      "field": "dashboard_updated_at",
+      "state": "present but null / not parseable",
+      "blocked_kpis": [
+        "MongoDB -> Dashboard",
+        "End-to-End Latency",
+        "Dashboard Refresh Latency"
+      ]
+    }
+  ],
+  "nlp_guardrails": {
+    "status": "documented_not_telemetry_validated",
+    "note": "Task-focused LLM instructions were reported; this UI foundation does not validate guardrails telemetry."
+  },
+  "safety": {
+    "read_only": true,
+    "writes_performed": false,
+    "credentials_redacted": true
+  }
+}

@@ -7,7 +7,7 @@ The current MVP scope is a functioning single-humanoid assistant that can receiv
 ## Project Structure
 
 ```text
-swarmsense/
+humanoid-assistant-webots/
   ros2_ws/
     src/
       robot_assistant/  Active ROS2 package for modular robot abilities
@@ -21,6 +21,42 @@ swarmsense/
     planning/           Agile scope, backlog, sprint notes
     architecture/       Node architecture and integration decisions
   notebooks/            Optional analysis notebooks
+  analytics/            Read-only MongoDB KPI analysis and generated outputs
+  local_kpi_ui_foundation/
+    README.md           Admin KPI dashboard access and validation guide
+```
+
+## Admin KPI Dashboard Access
+
+The Admin KPI dashboard foundation on the `leona-nesto-dashboard-integration` branch lives in:
+
+```text
+local_kpi_ui_foundation/
+```
+
+Open the static dashboard directly from the repository:
+
+```text
+local_kpi_ui_foundation/admin_kpi_dashboard_ui.html
+```
+
+For the most reliable browser behavior, serve that folder locally from the repository root:
+
+```bat
+cd local_kpi_ui_foundation
+python -m http.server 8765 --bind 127.0.0.1
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765/admin_kpi_dashboard_ui.html
+```
+
+The dashboard reads the sanitized snapshot embedded in the page and, when served over HTTP, also reloads `real_analysis_snapshot.json` from the same folder. To validate the package before use, run:
+
+```bat
+python local_kpi_ui_foundation\validate_ui_foundation.py
 ```
 
 ## Saturday Demo
