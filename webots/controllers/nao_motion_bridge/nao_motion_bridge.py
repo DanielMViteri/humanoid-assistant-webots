@@ -30,7 +30,18 @@ MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
 PERCEPTION_PATH = PROJECT_ROOT / "data" / "raw" / "webots_perception.json"
 RECOGNITION_IMAGE_PATH = PROJECT_ROOT / "data" / "raw" / "recognition_camera_view.png"
 MOTION_ROOT = PROJECT_ROOT / "webots" / "motions" / "nao"
-CONTROLLER_VERSION = "2026-06-19-nao-motion-bridge-v7-perception"
+CONTROLLER_VERSION = "2026-06-25-nao-motion-bridge-v8-perception-gated"
+# The head recognition camera (320x240 + Recognition) and depth RangeFinder are
+# only needed for camera-driven navigation, which the supervisor currently keeps
+# OFF (CAMERA_NAV_ENABLED = False -> it navigates via god-mode visibility instead).
+# A Webots Camera/RangeFinder only renders while enabled, and a 320x240 recognition
+# render every basic timestep is the single biggest simulation cost in this world --
+# it dragged the real-time factor down so a ~6 s retrieval took ~2 min of wall time.
+# Leaving perception disabled removes that cost with zero effect on navigation or on
+# the dashboard (its object/scene events come from the supervisor, not these cameras).
+# Flip back to True together with the supervisor's CAMERA_NAV_ENABLED to restore the
+# camera-driven perception feed.
+PERCEPTION_ENABLED = False
 PERCEPTION_INTERVAL_SECONDS = 0.2
 IMAGE_SAVE_EVERY_N = 0  # set >0 to periodically dump the recognition camera view (debug only)
 RECOGNITION_CAMERA_NAME = "recognition_camera"
@@ -188,8 +199,13 @@ class NaoMotionBridge(Robot):
         self.last_state_signature: tuple[str, str, bool, int] | None = None
         self.last_perception_time = 0.0
         self.perception_writes = 0
-        self.recognition_camera = self._init_recognition_camera()
-        self.depth_camera = self._init_depth_camera()
+        if PERCEPTION_ENABLED:
+            self.recognition_camera = self._init_recognition_camera()
+            self.depth_camera = self._init_depth_camera()
+        else:
+            self.recognition_camera = None
+            self.depth_camera = None
+            print("nao_motion_bridge perception: disabled (camera-nav off; cameras not rendered for speed)")
         print(f"nao_motion_bridge version: {CONTROLLER_VERSION}")
         print(f"nao_motion_bridge motions: {sorted(self.motions)}")
 
@@ -325,10 +341,11 @@ class NaoMotionBridge(Robot):
                 )
                 self.start_motion(motion_name, loop)
 
-            now = time.time()
-            if now - self.last_perception_time >= PERCEPTION_INTERVAL_SECONDS:
-                self.last_perception_time = now
-                self.write_perception()
+            if PERCEPTION_ENABLED:
+                now = time.time()
+                if now - self.last_perception_time >= PERCEPTION_INTERVAL_SECONDS:
+                    self.last_perception_time = now
+                    self.write_perception()
 
 
 if __name__ == "__main__":

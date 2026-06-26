@@ -57,6 +57,15 @@ CONVERSATION_EVENTS_COLLECTION = "conversation_events"
 ROBOT_STATUS_COLLECTION = "robot_status"
 WEBOTS_COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 DEFAULT_POLL_SECONDS = 3.0
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
 
 # Dashboard press-to-talk markers that should trigger a real mic recording.
 VOICE_LISTEN_SCENARIOS = {"voice_listen", "press_to_talk", "talk_listen"}
@@ -130,6 +139,32 @@ def normalize_target(raw: str | None) -> str:
     return OBJECT_ALIASES.get(key, key)
 
 
+def _coerce_epoch_ms(value: Any) -> int | None:
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except Exception:
+        return None
+
+
+def timing_from_document(document: dict[str, Any]) -> dict[str, int | None]:
+    payload = document.get("payload") or {}
+    if not isinstance(payload, dict):
+        payload = {}
+    return {
+        field: _coerce_epoch_ms(document.get(field)) or _coerce_epoch_ms(payload.get(field))
+        for field in TELEMETRY_TIMING_FIELDS
+    }
+
+
+def apply_timing_fields(target: dict[str, Any], timing: dict[str, int | None]) -> None:
+    for field in TELEMETRY_TIMING_FIELDS:
+        value = timing.get(field)
+        if value is not None:
+            target[field] = value
+
+
 # --------------------------------------------------------------------------- #
 # Scenario requests -> Webots command file
 # --------------------------------------------------------------------------- #
@@ -160,7 +195,7 @@ def build_command(scenario: str, document: dict[str, Any]) -> dict[str, Any]:
     requested = normalize_target(payload.get("target_object"))
     target_object = requested if requested in KNOWN_WEBOTS_TARGETS else spec["target_object"]
     now = current_epoch_ms()
-    return {
+    command = {
         "command_id": f"cmd_dash_{now}",
         "timestamp": now,
         "source": "nesto_dashboard_bridge",
@@ -174,6 +209,8 @@ def build_command(scenario: str, document: dict[str, Any]) -> dict[str, Any]:
         "target_object": target_object,
         "task_status": spec["task_status"],
     }
+    apply_timing_fields(command, timing_from_document(document))
+    return command
 
 
 def write_webots_command(command: dict[str, Any], path: Path = WEBOTS_COMMAND_PATH) -> Path:
@@ -183,18 +220,19 @@ def write_webots_command(command: dict[str, Any], path: Path = WEBOTS_COMMAND_PA
 
 
 def write_dispatch_event(mongo: MongoEventClient, command: dict[str, Any]) -> None:
-    event = create_event(
-        "robot_command_sent",
-        {
-            "command_id": command["command_id"],
-            "intent": command["intent"],
-            "action": command["action"],
-            "target_object": command["target_object"],
-            "scenario": command["scenario"],
-            "scenario_event_id": command["scenario_event_id"],
-            "command_source": "nesto_dashboard_bridge",
-        },
-    )
+    payload = {
+        "command_id": command["command_id"],
+        "intent": command["intent"],
+        "action": command["action"],
+        "target_object": command["target_object"],
+        "scenario": command["scenario"],
+        "scenario_event_id": command["scenario_event_id"],
+        "command_source": "nesto_dashboard_bridge",
+    }
+    timing = {field: _coerce_epoch_ms(command.get(field)) for field in TELEMETRY_TIMING_FIELDS}
+    apply_timing_fields(payload, timing)
+    event = create_event("robot_command_sent", payload)
+    apply_timing_fields(event, timing)
     mongo.insert_event(event)
 
 
@@ -327,11 +365,14 @@ def run_emotion_recognition(mongo: MongoEventClient, document: dict[str, Any], a
     summary = result["summary"]
     mode = "video" if args.video and not args.simulate_emotion else ("simulated" if args.simulate_emotion else "snapshot")
     # Tag the events so the dashboard can tie the detection back to the request.
+    timing = timing_from_document(document)
     for event in result["events"]:
         event["payload"]["source_event_id"] = source_event_id
         event["payload"]["self_reported_mood"] = requested_mood
         event["payload"]["trigger"] = "nesto_dashboard_mood_check"
         event["payload"]["capture_mode"] = mode
+        apply_timing_fields(event["payload"], timing)
+        apply_timing_fields(event, timing)
 
     inserted = mongo.insert_events(result["events"])
     print(
@@ -546,6 +587,19 @@ def process_collection(
         if event_id in seen:
             continue
         seen.add(event_id)
+        bridge_received_at = current_epoch_ms()
+        payload = document.get("payload") if isinstance(document.get("payload"), dict) else {}
+        document["bridge_received_at"] = _coerce_epoch_ms(document.get("bridge_received_at")) or bridge_received_at
+        payload = dict(payload or {})
+        payload["bridge_received_at"] = _coerce_epoch_ms(payload.get("bridge_received_at")) or document["bridge_received_at"]
+        document["payload"] = payload
+        try:
+            collection.update_one(
+                {"_id": document["_id"]},
+                {"$set": {"bridge_received_at": document["bridge_received_at"], "payload.bridge_received_at": payload["bridge_received_at"]}},
+            )
+        except Exception as exc:
+            print(f"  warning: could not stamp bridge_received_at on {event_id}: {exc.__class__.__name__}: {exc}")
         try:
             handler(mongo, document, args)
         except Exception as exc:

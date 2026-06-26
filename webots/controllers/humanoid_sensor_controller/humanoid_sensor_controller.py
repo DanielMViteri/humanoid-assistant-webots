@@ -39,6 +39,15 @@ COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 CONTROLLER_VERSION = "2026-06-10-retrieval-handoff-v1"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
 SEARCH_ROTATION_STEP = 0.18
 APPROACH_STEP_METERS = 0.035
 TARGET_REACHED_DISTANCE_METERS = 0.55
@@ -68,6 +77,19 @@ def create_event(event_type: str, payload: dict, timestamp: int | None = None) -
     if errors:
         raise ValueError("; ".join(errors))
     return event
+
+
+def telemetry_timing_payload(command: dict | None, completed_at: int | None = None) -> dict:
+    if command is None:
+        return {}
+    payload = {
+        field: command[field]
+        for field in TELEMETRY_TIMING_FIELDS
+        if command.get(field) not in (None, "")
+    }
+    if completed_at is not None:
+        payload["robot_action_completed_at"] = completed_at
+    return payload
 
 
 def get_available_devices(robot: Supervisor) -> dict[str, object]:
@@ -443,6 +465,7 @@ def main() -> None:
         new_command, last_command_id = read_latest_command(last_command_id, controller_started_ms)
         if new_command is not None:
             active_command = new_command
+            active_command["robot_action_started_at"] = active_command.get("robot_action_started_at") or epoch_ms()
             apply_command_motion(self_node, active_command)
             print(
                 "Accepted Webots command: "
@@ -460,6 +483,7 @@ def main() -> None:
                             "active_intent": active_command.get("intent"),
                             "target_object": active_command.get("target_object"),
                             "sensor_source": "webots_command_bridge",
+                            **telemetry_timing_payload(active_command),
                         },
                     )
                 ]
@@ -504,6 +528,13 @@ def main() -> None:
         target_area_reached = target_distance is not None and target_distance <= TARGET_REACHED_DISTANCE_METERS
         target_completion_reached = target_area_reached or (target_position is None and target_detection is not None)
         command_was_completed = active_command_id in completed_targets if active_command_id else False
+        robot_action_completed_at = (
+            completed_targets.get(active_command_id, {}).get("robot_action_completed_at")
+            if command_was_completed
+            else timestamp
+            if active_command_id and (target_detection or target_area_reached)
+            else None
+        )
         search_is_active = (
             active_command is not None
             and active_command.get("action") == "search_object"
@@ -528,6 +559,7 @@ def main() -> None:
                     "camera_enabled": camera is not None,
                     "range_sensor_enabled": range_finder is not None or bool(distance_sensors),
                     "search_state": "retrieval_ready" if target_area_reached or command_was_completed else "found" if target_detection else "approaching" if search_is_active and target_position is not None else "scanning" if search_is_active else "idle",
+                    **telemetry_timing_payload(active_command, robot_action_completed_at),
                 },
                 timestamp,
             )
@@ -590,6 +622,7 @@ def main() -> None:
                 "object": found_object,
                 "distance_m": target_detection["distance_m"] if target_detection else target_distance,
                 "handoff_position": handoff_position,
+                "robot_action_completed_at": timestamp,
             }
             events.append(
                 create_event(
@@ -607,6 +640,7 @@ def main() -> None:
                         "active_intent": active_command.get("intent"),
                         "retrieval_state": "handoff_ready" if handoff_position else "target_found",
                         "sensor": "webots_camera_recognition" if target_detection else "webots_supervisor_target_position",
+                        **telemetry_timing_payload(active_command, timestamp),
                     },
                     timestamp,
                 )

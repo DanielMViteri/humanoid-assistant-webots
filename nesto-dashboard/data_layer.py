@@ -409,6 +409,16 @@ ADMIN_EVENT_COLLECTIONS = [
     "alerts",
 ]
 
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
+
 _ADMIN_MONGO_STATUS_CACHE = {"expires": 0.0, "value": None}
 
 
@@ -430,6 +440,15 @@ def _admin_float(value: Any, fallback: float = 0.0) -> float:
         return float(str(value).replace("%", "").replace(",", ""))
     except Exception:
         return fallback
+
+
+def _admin_epoch_ms(value: Any) -> int | str:
+    if value in (None, ""):
+        return ""
+    try:
+        return int(float(value))
+    except Exception:
+        return str(value)
 
 
 def _admin_time_text(value: Any) -> str:
@@ -749,23 +768,29 @@ def admin_alerts(limit=40) -> list[dict[str, Any]]:
 
 def admin_telemetry(limit=80) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    dashboard_updated_at = int(time.time() * 1000)
     for collection in ADMIN_EVENT_COLLECTIONS:
         for doc in _admin_docs(collection, limit=limit):
             payload = _admin_payload(doc)
-            rows.append(
-                {
-                    "timestamp": doc.get("timestamp") or doc.get("created_at") or "",
-                    "time": _admin_time_text(doc.get("timestamp") or doc.get("created_at")),
-                    "event_id": _admin_first(doc.get("event_id"), doc.get("_id"), fallback=f"{collection}_{len(rows) + 1:02d}"),
-                    "source_collection": collection,
-                    "robot_id": _admin_first(doc.get("robot_id"), payload.get("robot_id"), fallback="-"),
-                    "patient": _admin_first(doc.get("user_id"), payload.get("user_id"), payload.get("patient"), fallback="-"),
-                    "event_type": _admin_first(doc.get("event_type"), payload.get("event_type"), fallback="event").replace("_", " ").title(),
-                    "room": _admin_first(payload.get("current_room"), payload.get("room"), payload.get("location"), fallback="-"),
-                    "status": _admin_first(doc.get("status"), payload.get("status"), fallback="Normal").replace("_", " ").title(),
-                    "summary": _admin_first(payload.get("message"), payload.get("text"), payload.get("description"), payload.get("reason"), payload.get("target_object"), fallback="Event received"),
-                }
-            )
+            timing_values = {
+                field: _admin_epoch_ms(doc.get(field) if doc.get(field) not in (None, "") else payload.get(field))
+                for field in TELEMETRY_TIMING_FIELDS
+            }
+            timing_values["dashboard_updated_at"] = timing_values.get("dashboard_updated_at") or dashboard_updated_at
+            row = {
+                "timestamp": doc.get("timestamp") or doc.get("created_at") or "",
+                "time": _admin_time_text(doc.get("timestamp") or doc.get("created_at")),
+                "event_id": _admin_first(doc.get("event_id"), doc.get("_id"), fallback=f"{collection}_{len(rows) + 1:02d}"),
+                "source_collection": collection,
+                "robot_id": _admin_first(doc.get("robot_id"), payload.get("robot_id"), fallback="-"),
+                "patient": _admin_first(doc.get("user_id"), payload.get("user_id"), payload.get("patient"), fallback="-"),
+                "event_type": _admin_first(doc.get("event_type"), payload.get("event_type"), fallback="event").replace("_", " ").title(),
+                "room": _admin_first(payload.get("current_room"), payload.get("room"), payload.get("location"), fallback="-"),
+                "status": _admin_first(doc.get("status"), payload.get("status"), fallback="Normal").replace("_", " ").title(),
+                "summary": _admin_first(payload.get("message"), payload.get("text"), payload.get("description"), payload.get("reason"), payload.get("target_object"), fallback="Event received"),
+            }
+            row.update(timing_values)
+            rows.append(row)
     rows.sort(key=lambda item: str(item.get("timestamp") or ""), reverse=True)
     if rows:
         return rows[:limit]
@@ -781,6 +806,13 @@ def admin_telemetry(limit=80) -> list[dict[str, Any]]:
             "room": "-",
             "status": "Waiting",
             "summary": "No telemetry/event records found yet.",
+            "ui_triggered_at": "",
+            "backend_received_at": "",
+            "bridge_received_at": "",
+            "robot_action_started_at": "",
+            "robot_action_completed_at": "",
+            "mongodb_logged_at": "",
+            "dashboard_updated_at": dashboard_updated_at,
         }
     ]
 

@@ -13,6 +13,15 @@ from event_schema import COLLECTIONS, REQUIRED_FIELDS, collection_for_event, cur
 PROJECT_ROOT = Path(__file__).resolve().parents[4]
 DEFAULT_DATABASE = "humanoid_assistant"
 DEFAULT_TIMEOUT_MS = 15000
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
 
 
 def load_dotenv(path: Path | None = None) -> None:
@@ -81,7 +90,20 @@ class MongoEventClient:
 
         collection_name = collection_for_event(event["event_type"])
         document = dict(event)
-        document["ingested_at"] = current_epoch_ms()
+        logged_at = current_epoch_ms()
+        document["ingested_at"] = logged_at
+        payload = document.get("payload")
+        if isinstance(payload, dict):
+            document["payload"] = dict(payload)
+            payload = document["payload"]
+        else:
+            payload = {}
+            document["payload"] = payload
+        for field in TELEMETRY_TIMING_FIELDS:
+            document.setdefault(field, payload.get(field))
+            payload.setdefault(field, document.get(field))
+        document["mongodb_logged_at"] = logged_at
+        payload["mongodb_logged_at"] = logged_at
         return self.db[collection_name].insert_one(document)
 
     def insert_events(self, events: list[dict[str, Any]]) -> dict[str, int]:

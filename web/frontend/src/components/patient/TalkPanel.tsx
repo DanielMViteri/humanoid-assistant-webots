@@ -2,14 +2,15 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { api, type VoiceExchange } from "@/lib/api";
+import { api, type VoiceExchange, withUiTriggeredAt } from "@/lib/api";
 import { LiveBanner, Spinner } from "@/components/ui";
 
 export function TalkPanel({ robotName }: { robotName: string }) {
   const [since, setSince] = useState<number | null>(null);
 
   const press = useMutation({
-    mutationFn: () => api<{ pressed_at_ms: number }>("/api/patient/voice/press-to-talk", { method: "POST" }),
+    mutationFn: () =>
+      api<{ pressed_at_ms: number }>("/api/patient/voice/press-to-talk", { method: "POST", body: withUiTriggeredAt() }),
     onSuccess: (res) => setSince(res.pressed_at_ms),
   });
 

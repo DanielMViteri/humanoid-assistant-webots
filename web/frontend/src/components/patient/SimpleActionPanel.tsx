@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, withUiTriggeredAt } from "@/lib/api";
 import { LiveBanner, Spinner } from "@/components/ui";
 
 export function SimpleActionPanel({
@@ -17,7 +17,7 @@ export function SimpleActionPanel({
   successText: string;
   danger?: boolean;
 }) {
-  const action = useMutation({ mutationFn: () => api(endpoint, { method: "POST" }) });
+  const action = useMutation({ mutationFn: () => api(endpoint, { method: "POST", body: withUiTriggeredAt() }) });
 
   return (
     <div className="space-y-5">

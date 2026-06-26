@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { api, type MoodReading } from "@/lib/api";
+import { api, type MoodReading, withUiTriggeredAt } from "@/lib/api";
 import { LiveBanner, Spinner } from "@/components/ui";
 
 const MOODS = ["Happy", "Calm", "Sad", "Tired", "Worried", "Angry", "In pain", "Prefer not to say"];
@@ -12,7 +12,8 @@ export function MoodPanel({ robotName }: { robotName: string }) {
   const [since, setSince] = useState<number | null>(null);
 
   const tap = useMutation({
-    mutationFn: (mood: string) => api<{ tapped_at_ms: number }>("/api/patient/mood", { method: "POST", body: { mood } }),
+    mutationFn: (mood: string) =>
+      api<{ tapped_at_ms: number }>("/api/patient/mood", { method: "POST", body: withUiTriggeredAt({ mood }) }),
     onSuccess: (res) => setSince(res.tapped_at_ms),
   });
 

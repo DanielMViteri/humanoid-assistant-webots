@@ -109,6 +109,16 @@ DASHBOARD_WRITE_ROUTES = {
     "summon_robot": "scenario_events",
 }
 
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
+
 
 
 
@@ -543,6 +553,15 @@ def _now_ms():
     return int(dt.datetime.now().timestamp() * 1000)
 
 
+def _coerce_epoch_ms(value):
+    if value in (None, ""):
+        return None
+    try:
+        return int(float(value))
+    except Exception:
+        return None
+
+
 def insert_dashboard_event(event_type, scenario_type=None, role="dashboard", status="requested", source_page="", payload=None):
     """
     Insert a dashboard action into the correct MongoDB collection.
@@ -552,6 +571,8 @@ def insert_dashboard_event(event_type, scenario_type=None, role="dashboard", sta
     """
     timestamp = _now_ms()
     payload = dict(payload or {})
+    ui_triggered_at = _coerce_epoch_ms(payload.get("ui_triggered_at")) or timestamp
+    backend_received_at = _coerce_epoch_ms(payload.get("backend_received_at")) or timestamp
     if scenario_type:
         payload.setdefault("scenario_type", scenario_type)
     payload.setdefault("status", status)
@@ -562,6 +583,18 @@ def insert_dashboard_event(event_type, scenario_type=None, role="dashboard", sta
     metadata.setdefault("target_collection", DASHBOARD_WRITE_ROUTES.get(event_type, "scenario_events"))
 
     collection = DASHBOARD_WRITE_ROUTES.get(event_type, "scenario_events")
+    mongodb_logged_at = _now_ms()
+    timing_values = {
+        "ui_triggered_at": ui_triggered_at,
+        "backend_received_at": backend_received_at,
+        "bridge_received_at": _coerce_epoch_ms(payload.get("bridge_received_at")),
+        "robot_action_started_at": _coerce_epoch_ms(payload.get("robot_action_started_at")),
+        "robot_action_completed_at": _coerce_epoch_ms(payload.get("robot_action_completed_at")),
+        "mongodb_logged_at": _coerce_epoch_ms(payload.get("mongodb_logged_at")) or mongodb_logged_at,
+        "dashboard_updated_at": _coerce_epoch_ms(payload.get("dashboard_updated_at")),
+    }
+    for field, value in timing_values.items():
+        payload[field] = value
 
     document = {
         "event_id": f"dash_{timestamp}_{collection}",
@@ -579,6 +612,7 @@ def insert_dashboard_event(event_type, scenario_type=None, role="dashboard", sta
         "payload": payload,
         "metadata": metadata,
     }
+    document.update(timing_values)
     try:
         if _client_init_error:
             return None

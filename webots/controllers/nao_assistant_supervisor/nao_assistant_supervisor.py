@@ -32,10 +32,19 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-23-nao-supervisor-v13-stable-glide"
+CONTROLLER_VERSION = "2026-06-25-nao-supervisor-v18-real-walk-settle-gate"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
+TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
 NAVIGATION_HEIGHT = 0.334
 TARGET_REACHED_DISTANCE_METERS = 0.55
 WAYPOINT_REACHED_DISTANCE_METERS = 0.50
@@ -44,10 +53,12 @@ WAYPOINT_REACHED_DISTANCE_METERS = 0.50
 # so it walks up to the table's west edge and "picks it up" there (the box is then
 # moved into the hand-off pose). 0.72 m lands the robot at the table edge (~x=-1.38)
 # once the 1 Hz completion check + walk overshoot are accounted for.
-MEDICINE_REACH_DISTANCE_METERS = 0.72
+MEDICINE_REACH_DISTANCE_METERS = 0.80  # standoff so the NAO stops on open floor
+                                       # WEST of the table, never walking into it
 STALL_DETECTION_DISTANCE_METERS = 0.02
 STALL_DETECTION_STEPS = 20
-TURN_ALIGNMENT_RADIANS = 0.30
+TURN_ALIGNMENT_RADIANS = 0.42  # > half the 40deg (0.70 rad) turn step, so a single
+                               # turn can't overshoot into a reverse turn (oscillation)
 TURN_HARD_ALIGNMENT_RADIANS = 0.65
 # God-mode heading control: how fast the supervisor may steer the robot's base
 # heading toward the goal (rad/s). At ~1.6 rad/s a full 180deg turn takes ~2s.
@@ -59,6 +70,13 @@ MOTION_STEP_SECONDS = {
     "hand_wave": 5.2,
     "support": 5.2,
 }
+# Pause (motors holding the settled stance) inserted BETWEEN gait motions. The
+# official NAO demo only stays upright because a human paces the motions and lets
+# the robot stabilise before the next one; we switch gaits automatically, so each
+# stop()+play() snaps the leg pose on a still-moving robot and it topples. This
+# settle window reproduces that pacing -- the robot finishes a gait, holds its
+# (statically stable, symmetric) end stance, then starts the next gait from rest.
+SETTLE_SECONDS = 0.8
 SEARCH_MEMORY_SECONDS = 6.0
 MAX_VISIBILITY_DISTANCE_METERS = 3.0
 VISIBILITY_HALF_ANGLE_RADIANS = 1.25
@@ -122,6 +140,19 @@ def create_event(event_type: str, payload: dict, timestamp: int | None = None) -
     if errors:
         raise ValueError("; ".join(errors))
     return event
+
+
+def telemetry_timing_payload(command: dict | None, completed_at: int | None = None) -> dict:
+    if command is None:
+        return {}
+    payload = {
+        field: command[field]
+        for field in TELEMETRY_TIMING_FIELDS
+        if command.get(field) not in (None, "")
+    }
+    if completed_at is not None:
+        payload["robot_action_completed_at"] = completed_at
+    return payload
 
 
 def _safe_print(text: str) -> None:
@@ -228,8 +259,26 @@ def get_yaw(node) -> float:
     field = node.getField("rotation")
     if field is None:
         return 0.0
-    rotation = list(field.getSFRotation())
-    return float(rotation[3])
+    values = list(field.getSFRotation())
+    if len(values) < 4:
+        return 0.0
+    ax, ay, az, angle = values[0], values[1], values[2], values[3]
+    # Robust yaw extraction. The old code returned `angle` directly, but Webots
+    # stores a rotation about -z as a POSITIVE angle with the axis flipped to
+    # [0,0,-1], so `angle` flips sign with orientation and the robot circled.
+    # With set_yaw gone (real walking) the body's stored axis is no longer pinned
+    # to +z, so we derive heading from the rotation matrix: rotate the NAO's local
+    # forward axis (+y) into the world via Rodrigues' formula and read it off that.
+    norm = math.sqrt(ax * ax + ay * ay + az * az) or 1.0
+    ax, ay, az = ax / norm, ay / norm, az / norm
+    c = math.cos(angle)
+    s = math.sin(angle)
+    one_c = 1.0 - c
+    # World forward = R * (0, 1, 0)  (second column of the rotation matrix).
+    forward_x = ax * ay * one_c - az * s
+    forward_y = c + ay * ay * one_c
+    # Match the heading_vector(yaw) = (sin yaw, -cos yaw) convention used elsewhere.
+    return math.atan2(forward_x, -forward_y)
 
 
 def planar_distance(first: list[float], second: list[float]) -> float:
@@ -248,6 +297,14 @@ def normalize_angle(angle: float) -> float:
 
 def heading_vector(yaw: float) -> tuple[float, float]:
     return math.sin(yaw), -math.cos(yaw)
+
+
+def world_heading_deg(yaw: float) -> float:
+    """Compass-style world direction (degrees) the robot faces for a given yaw,
+    using the same heading_vector convention as navigation. Lets a debug line
+    compare 'where it thinks it faces' against 'where it actually moved'."""
+    fx, fy = heading_vector(yaw)
+    return math.degrees(math.atan2(fy, fx))
 
 
 def relative_position(robot_position: list[float], robot_yaw: float, target_position: list[float]) -> dict[str, float]:
@@ -565,14 +622,21 @@ def route_for_command(
         ]
 
     if action == "check_medicine" and target == "medicine_box":
-        # Walk straight to the medicine box and pick it up at the table's edge.
-        # Aiming at the box's real position (it's on the table) makes the NAO walk
-        # up to it; MEDICINE_REACH_DISTANCE_METERS stops it at the table edge, where
-        # the box is moved into the hand-off pose. The previous fixed route looped
-        # SOUTH (away from the box), which read as the robot "struggling."
-        if target_position is not None:
-            return [[target_position[0], target_position[1], robot_height]]
-        return [[-0.82, -2.42, robot_height]]
+        # Real walking must NEVER aim the robot at the box: the box sits on the
+        # coffee table (centre ~(-0.8,-2.5), x[-1.2,-0.4]), so walking toward it
+        # drives the NAO into the table and it topples -- exactly how v15 fell.
+        # Instead route over OPEN FLOOR to a standing spot just WEST of the table
+        # and stop there. The box (-0.82,-2.42) is ~0.63 m from that spot, inside
+        # MEDICINE_REACH_DISTANCE_METERS (0.80), so the pick-up/hand-off fires while
+        # the robot is still clear of the table. Two waypoints: a staging point NW
+        # of the table (reachable from the spawn or from the cane-retrieval corner)
+        # then the west standing spot. Because reach (0.80) > standing-spot-to-box
+        # (0.63), completion triggers on the inbound approach, before the robot ever
+        # reaches -- let alone overshoots into -- the table.
+        return [
+            [-1.7, -2.05, robot_height],
+            [-1.45, -2.42, robot_height],
+        ]
 
     if action == "support_user":
         return [
@@ -761,7 +825,10 @@ def main() -> None:
     locomotion_loop = False
     committed_motion = "idle"
     motion_hold_until = 0.0
+    settle_until = 0.0
     motion_sequence = 0
+    nav_debug_last_pos: list[float] | None = None
+    nav_debug_last_motion = "start"
     active_route_index = 0
     route_command_id: str | None = None
     last_seen_target_position: list[float] | None = None
@@ -786,6 +853,7 @@ def main() -> None:
         new_command, last_command_id = read_latest_command(last_command_id, controller_started_ms)
         if new_command is not None:
             active_command = new_command
+            active_command["robot_action_started_at"] = active_command.get("robot_action_started_at") or epoch_ms()
             route_command_id = active_command.get("command_id")
             active_route_index = 0
             last_seen_target_position = None
@@ -807,6 +875,7 @@ def main() -> None:
                             "target_object": active_command.get("target_object"),
                             "robot_model": "softbank_nao",
                             "sensor_source": "webots_supervisor_command_bridge",
+                            **telemetry_timing_payload(active_command),
                         },
                     )
                 ]
@@ -884,30 +953,22 @@ def main() -> None:
                 last_seen_target_position=remembered_target_position,
             )
             if navigation_goal is not None:
-                # --- God-mode heading control (stable) ------------------------
-                # Steer the base heading toward the goal EVERY tick via set_yaw.
-                # set_yaw forces rotation = [0,0,1,yaw] (roll/pitch = 0), which both
-                # aims the robot and holds it perfectly upright -- essential here,
-                # because the real Forwards50 walk gait is unstable in this world and
-                # the NAO topples without the per-tick upright forcing (v12 tried
-                # free physics and it fell). The cost is a "glide" look rather than
-                # true stepping; that is the deliberate presentation_mode behaviour.
+                # --- Real-physics navigation (v17): turn + walk, NO set_yaw ----
+                # Drive heading and translation with the official TurnLeft40 /
+                # TurnRight40 / Forwards50 gaits and let physics keep the robot
+                # upright, so it actually STEPS. set_yaw teleported the base
+                # orientation and toppled the walk, so it is not used here at all.
+                # Each motion is held for its full duration (no mid-stride
+                # interruption -> stays balanced), and we re-decide once it ends.
+                # A wide alignment tolerance (> half a 40deg turn step) stops the
+                # heading from ping-ponging; we only walk once roughly facing the
+                # goal. Routes stay on open floor and stop before furniture, so the
+                # robot never walks into a table and falls (that was v15's failure).
                 goal_dx = navigation_goal[0] - position[0]
                 goal_dy = navigation_goal[1] - position[1]
-                if goal_dx or goal_dy:
-                    desired_yaw = math.atan2(goal_dx, -goal_dy)
-                    current_yaw = get_yaw(nao_node)
-                    yaw_error = normalize_angle(desired_yaw - current_yaw)
-                    max_step = MAX_YAW_RATE_RADIANS_PER_SEC * (timestep / 1000.0)
-                    set_yaw(
-                        nao_node,
-                        normalize_angle(current_yaw + max(-max_step, min(max_step, yaw_error))),
-                    )
-                    heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
-                    pivot_motion = "turn_left" if yaw_error > 0 else "turn_right"
-                else:
-                    heading_aligned = True
-                    pivot_motion = "idle"
+                desired_yaw = math.atan2(goal_dx, -goal_dy)
+                yaw_error = normalize_angle(desired_yaw - get_yaw(nao_node))
+                heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
 
                 if last_search_position is not None and planar_distance(position, last_search_position) < STALL_DETECTION_DISTANCE_METERS:
                     stalled_search_steps += 1
@@ -915,20 +976,27 @@ def main() -> None:
                     stalled_search_steps = 0
                 last_search_position = list(position)
 
-                if not heading_aligned:
-                    if committed_motion != pivot_motion:
-                        committed_motion = pivot_motion
-                        motion_sequence += 1
+                now = robot.getTime()
+                if now < motion_hold_until and committed_motion != "idle":
+                    # Current gait is still playing -> let it finish (no mid-stride
+                    # interruption keeps the NAO balanced).
                     locomotion_motion, locomotion_loop = committed_motion, False
-                    motion_hold_until = 0.0
+                elif now < settle_until:
+                    # Gait finished: hold the settled stance for SETTLE_SECONDS so
+                    # physics can stabilise before the next gait starts from rest.
+                    # This is the key fix -- back-to-back stop()+play() gait switches
+                    # on a still-moving robot snap the leg pose and topple it.
+                    committed_motion = "idle"
+                    locomotion_motion, locomotion_loop = "idle", False
                 else:
-                    if robot.getTime() < motion_hold_until and committed_motion == "walk_forward":
-                        locomotion_motion, locomotion_loop = committed_motion, False
-                    else:
+                    if heading_aligned:
                         committed_motion = "walk_forward"
-                        locomotion_motion, locomotion_loop = committed_motion, False
-                        motion_hold_until = robot.getTime() + MOTION_STEP_SECONDS["walk_forward"]
-                        motion_sequence += 1
+                    else:
+                        committed_motion = "turn_left" if yaw_error > 0 else "turn_right"
+                    locomotion_motion, locomotion_loop = committed_motion, False
+                    motion_hold_until = now + MOTION_STEP_SECONDS[committed_motion]
+                    settle_until = motion_hold_until + SETTLE_SECONDS
+                    motion_sequence += 1
             elif action == "search_object":
                 if robot.getTime() < motion_hold_until and committed_motion != "idle":
                     locomotion_motion, locomotion_loop = committed_motion, False
@@ -1053,6 +1121,13 @@ def main() -> None:
             and navigation_goal_distance <= WAYPOINT_REACHED_DISTANCE_METERS
         )
         command_ready = target_reached or support_reached or command_was_completed
+        robot_action_completed_at = (
+            completed_targets.get(active_command_id, {}).get("robot_action_completed_at")
+            if command_was_completed
+            else timestamp
+            if active_command_id and command_ready
+            else None
+        )
         events = [
             create_event(
                 "robot_status_updated",
@@ -1100,6 +1175,7 @@ def main() -> None:
                         else "idle"
                     ),
                     "presentation_mode": True,
+                    **telemetry_timing_payload(active_command, robot_action_completed_at),
                 },
                 timestamp,
             )
@@ -1228,6 +1304,7 @@ def main() -> None:
                 "object": normalize_object_name(target_object or "target_object"),
                 "distance_m": target_distance,
                 "handoff_position": handoff_position,
+                "robot_action_completed_at": timestamp,
             }
             events.append(
                 create_event(
@@ -1244,6 +1321,7 @@ def main() -> None:
                         "active_intent": active_command.get("intent"),
                         "retrieval_state": "handoff_ready",
                         "sensor": "webots_supervisor_target_position",
+                        **telemetry_timing_payload(active_command, timestamp),
                     },
                     timestamp,
                 )
@@ -1258,6 +1336,7 @@ def main() -> None:
                 "object": "support_zone",
                 "distance_m": navigation_goal_distance,
                 "handoff_position": {"x": round(position[0], 3), "y": round(position[1], 3), "z": round(position[2], 3)},
+                "robot_action_completed_at": timestamp,
             }
 
         if obstacle_distance is not None and obstacle_distance < SAFETY_ALERT_DISTANCE_METERS:

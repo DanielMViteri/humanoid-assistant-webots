@@ -67,9 +67,14 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def _collection():
+    # Re-probe the connection on every call. We deliberately do NOT latch a failed
+    # probe: a single slow Atlas cold-start (TLS handshake) used to set
+    # _MONGO_AVAILABLE=False permanently, which silently degraded auth to the
+    # in-memory seed users (maria/anna/daniel/admintest) for the whole process --
+    # so real DB-registered users (e.g. testninep) got 401 "account not found"
+    # until the server was restarted. The find_one ping below is cheap when Atlas
+    # is up; when it is genuinely down we simply fall back to the seed users.
     global _MONGO_AVAILABLE
-    if _MONGO_AVAILABLE is False:
-        return None
     try:
         import db_queries
 

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, withUiTriggeredAt } from "@/lib/api";
 import { LiveBanner, Spinner } from "@/components/ui";
 
 export function FindPanel({
@@ -22,7 +22,7 @@ export function FindPanel({
   });
 
   const start = useMutation({
-    mutationFn: () => api("/api/patient/find-object", { method: "POST", body: { object: objectKey } }),
+    mutationFn: () => api("/api/patient/find-object", { method: "POST", body: withUiTriggeredAt({ object: objectKey }) }),
     onSuccess: () => setStarted(true),
   });
 

@@ -1979,6 +1979,13 @@ def _task9_styles():
         border-collapse: collapse;
         font-size: .86rem;
     }
+    .task9-table-scroll {
+        width: 100%;
+        overflow-x: auto;
+    }
+    .task9-table-scroll .task9-table {
+        min-width: 1580px;
+    }
     .task9-table th {
         color: #65736f;
         text-align: left;
@@ -2303,22 +2310,54 @@ def _task9_system_card(snapshot):
     """
 
 
+TASK9_TELEMETRY_TIMING_FIELDS = (
+    "ui_triggered_at",
+    "backend_received_at",
+    "bridge_received_at",
+    "robot_action_started_at",
+    "robot_action_completed_at",
+    "mongodb_logged_at",
+    "dashboard_updated_at",
+)
+
+
+def _task9_time_ms(value):
+    if value in (None, ""):
+        return "-"
+    try:
+        return dt.datetime.fromtimestamp(int(float(value)) / 1000).strftime("%H:%M:%S")
+    except Exception:
+        text = str(value or "").strip()
+        return text[:19] if text else "-"
+
+
+def _task9_timing_cell(row, field):
+    value = row.get(field)
+    raw = "" if value in (None, "") else str(value)
+    raw_html = f"<small>{escape(raw)}</small>" if raw else ""
+    return f"<td><b>{escape(_task9_time_ms(value))}</b>{raw_html}</td>"
+
+
 def _task9_telemetry_table(rows, limit=6):
     body = ""
     for row in rows[:limit]:
+        timing_cells = "".join(_task9_timing_cell(row, field) for field in TASK9_TELEMETRY_TIMING_FIELDS)
         body += (
             f'<tr><td>{escape(str(row.get("time", "-")))}</td>'
             f'<td>{escape(str(row.get("robot_id", "-")))}</td>'
             f'<td><b>{escape(str(row.get("event_type", "Event")))}</b><small>{escape(str(row.get("summary", "")))}</small></td>'
             f'<td>{escape(str(row.get("room", "-")))}</td>'
             f'<td>{_task9_badge(row.get("status", "Normal"), _task9_status_tone(row.get("status")))}</td>'
-            f'<td>{escape(str(row.get("source_collection", "-")))}</td></tr>'
+            f'<td>{escape(str(row.get("source_collection", "-")))}</td>{timing_cells}</tr>'
         )
+    timing_headers = "".join(f"<th>{field}</th>" for field in TASK9_TELEMETRY_TIMING_FIELDS)
     return f"""
+    <div class="task9-table-scroll">
     <table class="task9-table">
-        <thead><tr><th>Time</th><th>Robot ID</th><th>Event</th><th>Room</th><th>Status</th><th>Source</th></tr></thead>
+        <thead><tr><th>Time</th><th>Robot ID</th><th>Event</th><th>Room</th><th>Status</th><th>Source</th>{timing_headers}</tr></thead>
         <tbody>{body}</tbody>
     </table>
+    </div>
     """
 
 

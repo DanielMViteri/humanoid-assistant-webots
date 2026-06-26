@@ -211,6 +211,27 @@ Import Webots humanoid sensor events into MongoDB Atlas:
 python ros2_ws\src\robot_assistant\robot_assistant\webots_event_importer.py
 ```
 
+### End-to-end telemetry timing fields
+
+The dashboard, backend, bridge, Webots controllers, MongoDB importer, and
+admin telemetry table now carry these timing fields when the data is available:
+
+```text
+ui_triggered_at
+backend_received_at
+bridge_received_at
+robot_action_started_at
+robot_action_completed_at
+mongodb_logged_at
+dashboard_updated_at
+```
+
+All values are epoch milliseconds. They are used to trace one dashboard action
+from the UI click through backend receipt, bridge pickup, robot action start and
+completion, MongoDB persistence, and the provider dashboard refresh. The fields
+are stored on the MongoDB document and mirrored into `payload` where existing
+dashboard helpers read nested values.
+
 Test the same flow without using the OpenAI API:
 
 ```bat

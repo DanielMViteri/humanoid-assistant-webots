@@ -15,6 +15,10 @@ export function setToken(token: string | null) {
 
 type ApiOptions = { method?: string; body?: unknown };
 
+export function withUiTriggeredAt<T extends Record<string, unknown>>(body?: T): T & { ui_triggered_at: number } {
+  return { ...(body ?? ({} as T)), ui_triggered_at: Date.now() };
+}
+
 export async function api<T = unknown>(path: string, opts: ApiOptions = {}): Promise<T> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const token = getToken();

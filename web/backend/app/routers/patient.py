@@ -21,6 +21,23 @@ router = APIRouter(prefix="/api/patient", tags=["patient"])
 SOURCE_PAGE = "web-patient"
 
 
+def _now_ms() -> int:
+    return int(time.time() * 1000)
+
+
+class ClientTiming(BaseModel):
+    ui_triggered_at: int | None = None
+
+
+def _timed_payload(payload: dict | None = None, timing: ClientTiming | None = None) -> tuple[dict, int]:
+    backend_received_at = _now_ms()
+    data = dict(payload or {})
+    if timing and timing.ui_triggered_at:
+        data["ui_triggered_at"] = int(timing.ui_triggered_at)
+    data["backend_received_at"] = backend_received_at
+    return data, backend_received_at
+
+
 def _guardian(profile: dict) -> dict:
     contact = profile.get("guardian_contact") or {}
     return {
@@ -53,6 +70,7 @@ def home(claims: dict = Depends(get_current_user)):
 # --------------------------------------------------------------------------- #
 class FindBody(BaseModel):
     object: str | None = None  # "cane" | "medicine" | None (defaults to the important object)
+    ui_triggered_at: int | None = None
 
 
 @router.post("/find-object")
@@ -63,73 +81,82 @@ def find_object(body: FindBody, claims: dict = Depends(get_current_user)):
     else:
         scenario, target = "find_cane", "cane"
     location = remembered_object_location(patient_id_for(claims), target)
+    payload, backend_received_at = _timed_payload(
+        {"object": target, "target_object": target, "last_known_location": location, "search_status": "requested"},
+        body,
+    )
     db_queries.create_scenario_event(
         scenario,
-        payload={"object": target, "target_object": target, "last_known_location": location, "search_status": "requested"},
+        payload=payload,
         status="requested",
         role="elderly_user",
         source_page=SOURCE_PAGE,
     )
-    return {"ok": True, "scenario": scenario, "target": target, "remembered_location": location}
+    return {"ok": True, "scenario": scenario, "target": target, "remembered_location": location, "backend_received_at": backend_received_at}
 
 
-class MoodBody(BaseModel):
+class MoodBody(ClientTiming):
     mood: str
 
 
 @router.post("/mood")
 def mood(body: MoodBody, claims: dict = Depends(get_current_user)):
+    payload, backend_received_at = _timed_payload({"mood": body.mood, "clinical": False}, body)
     db_queries.create_mood_event(
-        payload={"mood": body.mood, "clinical": False},
+        payload=payload,
         status="recorded",
         role="elderly_user",
         source_page=SOURCE_PAGE,
     )
-    return {"ok": True, "tapped_at_ms": int(time.time() * 1000)}
+    return {"ok": True, "tapped_at_ms": backend_received_at, "backend_received_at": backend_received_at}
 
 
 @router.post("/voice/press-to-talk")
-def press_to_talk(claims: dict = Depends(get_current_user)):
+def press_to_talk(body: ClientTiming | None = None, claims: dict = Depends(get_current_user)):
+    payload, backend_received_at = _timed_payload({"trigger": "press_to_talk"}, body)
     db_queries.insert_dashboard_event(
         "conversation_event",
         scenario_type="voice_listen",
         role="elderly_user",
         status="listening",
         source_page=SOURCE_PAGE,
-        payload={"trigger": "press_to_talk"},
+        payload=payload,
     )
-    return {"ok": True, "pressed_at_ms": int(time.time() * 1000)}
+    return {"ok": True, "pressed_at_ms": backend_received_at, "backend_received_at": backend_received_at}
 
 
 @router.post("/medication-taken")
-def medication_taken(claims: dict = Depends(get_current_user)):
+def medication_taken(body: ClientTiming | None = None, claims: dict = Depends(get_current_user)):
+    payload, backend_received_at = _timed_payload({"medicine_status": "taken"}, body)
     db_queries.create_medicine_event(
-        payload={"medicine_status": "taken"}, status="taken", role="elderly_user", source_page=SOURCE_PAGE
+        payload=payload, status="taken", role="elderly_user", source_page=SOURCE_PAGE
     )
-    return {"ok": True}
+    return {"ok": True, "backend_received_at": backend_received_at}
 
 
 @router.post("/emergency")
-def emergency(claims: dict = Depends(get_current_user)):
+def emergency(body: ClientTiming | None = None, claims: dict = Depends(get_current_user)):
+    payload, backend_received_at = _timed_payload({"alert_type": "emergency", "severity": "high", "status": "active"}, body)
     db_queries.create_alert_event(
-        payload={"alert_type": "emergency", "severity": "high", "status": "active"},
+        payload=payload,
         status="active",
         role="elderly_user",
         source_page=SOURCE_PAGE,
     )
-    return {"ok": True}
+    return {"ok": True, "backend_received_at": backend_received_at}
 
 
 @router.post("/call")
-def call_caregiver(claims: dict = Depends(get_current_user)):
+def call_caregiver(body: ClientTiming | None = None, claims: dict = Depends(get_current_user)):
+    payload, backend_received_at = _timed_payload({"call_status": "requested"}, body)
     db_queries.create_scenario_event(
         "call_caregiver",
-        payload={"call_status": "requested"},
+        payload=payload,
         status="requested",
         role="elderly_user",
         source_page=SOURCE_PAGE,
     )
-    return {"ok": True}
+    return {"ok": True, "backend_received_at": backend_received_at}
 
 
 # --------------------------------------------------------------------------- #

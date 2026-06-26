@@ -266,6 +266,25 @@ Daniel's Webots backend writes the standard event shape:
 event_id, event_type, timestamp, source, user_id, robot_id, payload
 ```
 
+Telemetry/admin log rows also expose these timing fields when present:
+
+```text
+ui_triggered_at
+backend_received_at
+bridge_received_at
+robot_action_started_at
+robot_action_completed_at
+mongodb_logged_at
+dashboard_updated_at
+```
+
+They are epoch-millisecond timestamps for tracing dashboard actions end to end:
+browser/UI click, FastAPI backend receipt, dashboard-command bridge pickup,
+Webots robot start, Webots robot completion, MongoDB insert, and dashboard
+render/update. `data_layer.admin_telemetry()` includes these keys in the current
+telemetry output, and `page_enterprise.py` displays them in the Telemetry & Logs
+table.
+
 The event-to-collection and Kafka-topic contract lives in
 `event_contracts.py`.
 
