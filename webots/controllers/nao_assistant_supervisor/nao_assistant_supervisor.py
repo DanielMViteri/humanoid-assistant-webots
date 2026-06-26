@@ -32,7 +32,7 @@ from event_schema import DEFAULT_ROBOT_ID, DEFAULT_SOURCE, DEFAULT_USER_ID, vali
 OUTPUT_PATH = PROJECT_ROOT / "data" / "raw" / "webots_humanoid_events.jsonl"
 COMMAND_PATH = PROJECT_ROOT / "data" / "raw" / "webots_command.json"
 MOTION_STATE_PATH = PROJECT_ROOT / "data" / "raw" / "webots_motion_state.json"
-CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v20-nav-debug"
+CONTROLLER_VERSION = "2026-06-27-nao-supervisor-v21-heading-offset"
 ROBOT_DEF = "NAO_ASSISTANT"
 ROBOT_ID = "H1"
 PUBLISH_INTERVAL_SECONDS = 1.0
@@ -129,6 +129,12 @@ FORWARD_LOOKAHEAD_M = 0.45
 WALK_STOP_CLEARANCE_M = 0.15
 AVOID_TURN_PROBE_RADIANS = 0.6
 FALL_RECOVERY_MIN_Z = 0.20
+# The NAO physically strides along its local +x axis, but get_yaw() derives the
+# heading from local +y -- a constant 90 deg mismatch. Confirmed from telemetry:
+# when get_yaw reported 168 deg / -154 deg the robot actually travelled along
+# ~81 deg / ~118 deg (both ~ -90 deg). So the true walking heading is
+# get_yaw() - 90 deg; we apply that offset wherever we reason about travel.
+MOTION_YAW_OFFSET_RADIANS = -math.pi / 2.0
 TARGET_BEARING_TOLERANCE_RAD = 0.30
 CAMERA_NAV_ACTIONS = {"search_object", "check_medicine"}
 
@@ -290,6 +296,11 @@ def get_yaw(node) -> float:
     forward_y = c + ay * ay * one_c
     # Match the heading_vector(yaw) = (sin yaw, -cos yaw) convention used elsewhere.
     return math.atan2(forward_x, -forward_y)
+
+
+def motion_heading(node) -> float:
+    """The direction the NAO actually walks (get_yaw is 90 deg off from travel)."""
+    return normalize_angle(get_yaw(node) + MOTION_YAW_OFFSET_RADIANS)
 
 
 def planar_distance(first: list[float], second: list[float]) -> float:
@@ -1019,7 +1030,7 @@ def main() -> None:
                 goal_dx = navigation_goal[0] - position[0]
                 goal_dy = navigation_goal[1] - position[1]
                 desired_yaw = math.atan2(goal_dx, -goal_dy)
-                yaw_error = normalize_angle(desired_yaw - get_yaw(nao_node))
+                yaw_error = normalize_angle(desired_yaw - motion_heading(nao_node))
                 heading_aligned = abs(yaw_error) < TURN_ALIGNMENT_RADIANS
 
                 if last_search_position is not None and planar_distance(position, last_search_position) < STALL_DETECTION_DISTANCE_METERS:
@@ -1041,12 +1052,12 @@ def main() -> None:
                     committed_motion = "idle"
                     locomotion_motion, locomotion_loop = "idle", False
                 else:
-                    if heading_aligned and forward_is_clear(robot, position, get_yaw(nao_node)):
+                    if heading_aligned and forward_is_clear(robot, position, motion_heading(nao_node)):
                         committed_motion = "walk_forward"
                     elif heading_aligned:
                         # Heading is right but an obstacle (e.g. the coffee table)
                         # is within the lookahead -- steer around it, don't walk in.
-                        committed_motion = turn_toward_open_side(robot, position, get_yaw(nao_node))
+                        committed_motion = turn_toward_open_side(robot, position, motion_heading(nao_node))
                     else:
                         committed_motion = "turn_left" if yaw_error > 0 else "turn_right"
                     locomotion_motion, locomotion_loop = committed_motion, False
@@ -1056,7 +1067,7 @@ def main() -> None:
                     # --- nav diagnostics (v20): one line per committed gait so we
                     # can see whether the heading aligns and whether walk_forward
                     # actually closes the gap to the goal. Remove once nav is fixed.
-                    _actual_yaw = get_yaw(nao_node)
+                    _actual_yaw = motion_heading(nao_node)
                     _gdist = planar_distance(position, navigation_goal)
                     _safe_print(
                         f"[nav] seq={motion_sequence} pos=({position[0]:.2f},{position[1]:.2f}) "
